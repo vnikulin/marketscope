@@ -20,6 +20,7 @@
     "paths": {
       "@marketscope/core": ["./packages/core/src/index.ts"],
       "@marketscope/filters": ["./packages/filters/src/index.ts"],
+      "@marketscope/filters/browser": ["./packages/filters/src/browser.ts"],
       "@marketscope/shared-types": ["./packages/shared-types/src/index.ts"]
     },
     "resolveJsonModule": true,

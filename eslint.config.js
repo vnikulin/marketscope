@@ -56,4 +56,11 @@ export default tseslint.config(
       'marketscope/no-extension-automation': ['error', { banNetwork: false }],
     },
   },
+  {
+    files: ['tools/marketscope-fixtures/collectcards.js'],
+    rules: {
+      // The collection labeler intentionally detects non-ASCII text.
+      'no-control-regex': 'off',
+    },
+  },
 );

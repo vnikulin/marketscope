@@ -10,6 +10,7 @@
     { "path": "../packages/shared-types" },
     { "path": "../packages/core" },
     { "path": "../packages/filters" },
-    { "path": "../apps/server" }
+    { "path": "../apps/server" },
+    { "path": "../apps/extension" }
   ]
 }

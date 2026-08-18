@@ -5,7 +5,7 @@ import type {
 } from '@marketscope/shared-types';
 
 import { evaluateBooleanAst, parseBooleanExpression } from './boolean.js';
-import { evaluateRegex } from './regex.js';
+import type { RegexEvaluation } from './regex.js';
 import { calculateRelevance, type OptionalTerm } from './relevance.js';
 import {
   evaluateListingTypeRules,
@@ -48,6 +48,12 @@ export interface FilterDefinition {
   listingTypes?: ListingTypeRules;
   relevanceThreshold?: number;
 }
+
+export type RegexEvaluator = (
+  pattern: string,
+  input: string,
+  flags: string,
+) => Promise<RegexEvaluation>;
 
 const LISTING_TYPE_LABELS = {
   sponsored: 'Sponsored',
@@ -138,9 +144,10 @@ function resolveRegexRule(rule: RegexRule): { pattern: string; flags: string } {
     : { pattern: rule.pattern, flags: rule.flags ?? 'iu' };
 }
 
-export async function evaluate(
+export async function evaluateWithRegex(
   listing: FilterableListing,
   definition: FilterDefinition,
+  regexEvaluator: RegexEvaluator,
 ): Promise<FilterVerdict> {
   const searchText = `${listing.title} ${listing.description ?? ''} ${listing.rawText}`;
   const normalizedSearchText = normalizeText(searchText);
@@ -151,7 +158,7 @@ export async function evaluate(
 
   for (const configuredRegex of definition.regexPatterns ?? []) {
     const regex = resolveRegexRule(configuredRegex);
-    const result = await evaluateRegex(regex.pattern, searchText, regex.flags);
+    const result = await regexEvaluator(regex.pattern, searchText, regex.flags);
     checks.push({
       rule: `Regex: ${regex.pattern}`,
       passed: result.matched && result.error === undefined,

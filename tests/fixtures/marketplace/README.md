@@ -12,3 +12,10 @@ Before committing a snapshot:
 - Inspect the saved file manually for secrets and personal information.
 
 Never collect fixtures through MarketScope automation. Save pages that a person loaded and sanitize them offline.
+
+## Coverage exception
+
+No sponsored fixture: Marketplace served zero sponsored cards to this account
+across four collection sessions. A manual page-text check also found none. The
+corpus does not fabricate sponsored markup because M4 requires real snapshots.
+Run verification with `--waive sponsored`.

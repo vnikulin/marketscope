@@ -1,1 +1,63 @@
-export {};
+import {
+  getExtensionState,
+  type KeyValueStorage,
+  ListingUploadQueue,
+  setPreferences,
+} from './transport.js';
+import type { ContentMessage } from './types.js';
+
+function chromeStorage(area: chrome.storage.StorageArea): KeyValueStorage {
+  return {
+    async get<T>(key: string): Promise<T | undefined> {
+      const values = await area.get(key);
+      return values[key] as T | undefined;
+    },
+    async set<T>(key: string, value: T): Promise<void> {
+      await area.set({ [key]: value });
+    },
+  };
+}
+
+const localStorage = chromeStorage(chrome.storage.local);
+const sessionStorage = chromeStorage(chrome.storage.session);
+const request = (url: string, init: RequestInit): Promise<Response> =>
+  fetch(url, init);
+const UPLOAD_RETRY_ALARM = 'marketscope-upload-retry';
+const uploadQueue = new ListingUploadQueue(
+  sessionStorage,
+  localStorage,
+  request,
+  (delay) => {
+    void chrome.alarms.create(UPLOAD_RETRY_ALARM, {
+      when: Date.now() + delay,
+    });
+  },
+);
+
+void uploadQueue.recover();
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === UPLOAD_RETRY_ALARM) void uploadQueue.flush();
+});
+
+chrome.runtime.onMessage.addListener(
+  (message: ContentMessage, _sender, sendResponse): boolean => {
+    const handle = async (): Promise<unknown> => {
+      switch (message.type) {
+        case 'GET_STATE':
+          return getExtensionState(localStorage, request);
+        case 'QUEUE_LISTINGS':
+          await uploadQueue.enqueue(message.listings);
+          return { queued: message.listings.length };
+        case 'SET_PREFERENCES':
+          await setPreferences(localStorage, message.preferences);
+          return { saved: true };
+      }
+    };
+    void handle().then(sendResponse, (error: unknown) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      sendResponse({ error: detail });
+    });
+    return true;
+  },
+);
