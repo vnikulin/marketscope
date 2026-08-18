@@ -5,5 +5,9 @@
     "rootDir": ".",
     "types": ["chrome"]
   },
-  "include": ["src/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/filters" }
+  ]
 }

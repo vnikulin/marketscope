@@ -5,5 +5,10 @@
     "rootDir": ".",
     "types": ["node", "vitest/globals"]
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "references": [
+    { "path": "../packages/shared-types" },
+    { "path": "../packages/core" },
+    { "path": "../packages/filters" }
+  ]
 }

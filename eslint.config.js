@@ -2,8 +2,7 @@ import eslint from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-const zeroRequestMessage =
-  'MarketScope generates zero Facebook requests. This operation is forbidden in extension source.';
+import { marketscopePlugin } from './eslint-rules.js';
 
 export default tseslint.config(
   {
@@ -20,6 +19,9 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],
+    plugins: {
+      marketscope: marketscopePlugin,
+    },
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -27,20 +29,8 @@ export default tseslint.config(
       },
     },
     rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "MemberExpression[property.name='innerHTML']",
-          message:
-            'MarketScope renders listing-derived strings as text nodes. innerHTML is forbidden.',
-        },
-        {
-          selector:
-            "CallExpression[callee.type='MemberExpression'][callee.property.name='insertAdjacentHTML']",
-          message:
-            'MarketScope renders listing-derived strings as text nodes. insertAdjacentHTML is forbidden.',
-        },
-      ],
+      'marketscope/no-em-dash': 'error',
+      'marketscope/no-unsafe-html': 'error',
     },
   },
   {
@@ -52,68 +42,18 @@ export default tseslint.config(
       },
     },
     rules: {
-      'no-restricted-globals': [
-        'error',
-        { name: 'fetch', message: zeroRequestMessage },
-        { name: 'XMLHttpRequest', message: zeroRequestMessage },
-      ],
-      'no-restricted-properties': [
-        'error',
-        { object: 'document', property: 'cookie', message: zeroRequestMessage },
-        { object: 'chrome', property: 'cookies', message: zeroRequestMessage },
-      ],
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "MemberExpression[property.name='innerHTML']",
-          message:
-            'MarketScope renders listing-derived strings as text nodes. innerHTML is forbidden.',
-        },
-        {
-          selector:
-            "CallExpression[callee.type='MemberExpression'][callee.property.name='insertAdjacentHTML']",
-          message:
-            'MarketScope renders listing-derived strings as text nodes. insertAdjacentHTML is forbidden.',
-        },
-        {
-          selector:
-            "CallExpression[callee.object.name='window'][callee.property.name='scrollTo']",
-          message: zeroRequestMessage,
-        },
-        {
-          selector: "CallExpression[callee.property.name='scrollIntoView']",
-          message: zeroRequestMessage,
-        },
-        {
-          selector: "CallExpression[callee.property.name='click']",
-          message: zeroRequestMessage,
-        },
-        {
-          selector: "CallExpression[callee.property.name='dispatchEvent']",
-          message: zeroRequestMessage,
-        },
-        {
-          selector:
-            "CallExpression[callee.object.name='history'][callee.property.name='pushState']",
-          message: zeroRequestMessage,
-        },
-        {
-          selector:
-            "CallExpression[callee.object.name='location'][callee.property.name='assign']",
-          message: zeroRequestMessage,
-        },
-        {
-          selector:
-            "AssignmentExpression[left.object.name='location'][left.property.name='href']",
-          message: zeroRequestMessage,
-        },
-        {
-          selector:
-            "CallExpression[callee.type='MemberExpression'][callee.property.name=/^(querySelector|querySelectorAll|matches|closest)$/] > Literal.arguments:first-child[value=/\\.[a-z0-9]{6,}/]",
-          message:
-            'Facebook generated class names are unstable. Use structural, ARIA, href, alt, or visible-text selectors.',
-        },
-      ],
+      'marketscope/no-extension-automation': ['error', { banNetwork: true }],
+      'marketscope/no-generated-facebook-class': 'error',
+    },
+  },
+  {
+    files: [
+      'apps/extension/src/service-worker.{js,ts}',
+      'apps/extension/src/service-worker/**/*.{js,ts}',
+      'apps/extension/src/background/**/*.{js,ts}',
+    ],
+    rules: {
+      'marketscope/no-extension-automation': ['error', { banNetwork: false }],
     },
   },
 );
