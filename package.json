@@ -1,0 +1,34 @@
+{
+  "name": "marketscope",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -b --pretty false",
+    "test": "npm run test:unit && npm run test:integration && npm run test:security && npm run test:e2e",
+    "test:unit": "npm run test --workspaces --if-present",
+    "test:integration": "vitest run --passWithNoTests tests/integration",
+    "test:security": "vitest run tests/security",
+    "test:e2e": "vitest run --passWithNoTests tests/e2e",
+    "build": "npm run build --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
+    "@types/chrome": "^0.2.6",
+    "@types/node": "^26.2.0",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}

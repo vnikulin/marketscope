@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "MarketScope",
+  "version": "0.0.0",
+  "background": {
+    "service_worker": "dist/src/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/marketplace/*"],
+      "js": ["dist/src/content.js"]
+    }
+  ]
+}

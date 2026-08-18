@@ -1,0 +1,8 @@
+coverage
+dist
+docs/CODEX-TASKS.md
+docs/SPEC.md
+node_modules
+package-lock.json
+playwright-report
+test-results
