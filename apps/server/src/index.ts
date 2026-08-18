@@ -1,12 +1,21 @@
-import Fastify from 'fastify';
+import { resolve } from 'node:path';
 
-const server = Fastify({ logger: true });
+import { createServer } from './app.js';
 
-server.get('/health', async () => ({ status: 'ok' }));
+const databasePath = process.env.MARKETSCOPE_DATABASE_PATH;
+if (databasePath === undefined || databasePath.trim().length === 0) {
+  throw new Error('MARKETSCOPE_DATABASE_PATH is required');
+}
+
+const { app } = await createServer({
+  databasePath: resolve(databasePath),
+  logger: true,
+});
 
 try {
-  await server.listen({ host: '0.0.0.0', port: 3000 });
+  await app.listen({ host: '0.0.0.0', port: 3000 });
 } catch (error) {
-  server.log.error(error);
-  process.exit(1);
+  app.log.error(error);
+  await app.close();
+  process.exitCode = 1;
 }

@@ -9,6 +9,7 @@
   "references": [
     { "path": "../packages/shared-types" },
     { "path": "../packages/core" },
-    { "path": "../packages/filters" }
+    { "path": "../packages/filters" },
+    { "path": "../apps/server" }
   ]
 }
