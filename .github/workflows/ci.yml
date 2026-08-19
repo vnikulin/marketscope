@@ -29,17 +29,18 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: npm
-      - run: |
-          sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources
-          apt-get update
-          apt-get install --yes --no-install-recommends build-essential
       - run: npm ci
-      - run: npm run test:e2e
+      - run: >-
+          docker run --rm --ipc=host
+          --user "$(id -u):$(id -g)"
+          --env HOME=/tmp
+          --volume "$GITHUB_WORKSPACE:/work"
+          --workdir /work
+          mcr.microsoft.com/playwright:v1.62.1-noble
+          npm run test:e2e

@@ -295,10 +295,9 @@
 - CI runs E2E in Microsoft's Playwright image pinned to the repository's exact
   Playwright version. Hosted-runner browser installation can stall after the
   full Chromium download, and the extension test requires that full Chromium
-  channel. Static checks, non-browser tests, release packaging, and the Docker
-  build stay in a separate native runner job. Feature branches run CI through
-  pull requests. Direct push CI is limited to `main`, so the same commit doesn't
-  consume duplicate runners. The browser image gets `build-essential` before
-  `npm ci` because Node 24 rebuilds the native `better-sqlite3` binding there.
-  The job changes the image's Ubuntu package sources from HTTP to HTTPS because
-  GitHub's hosted runner can't reach the image's port 80 archive endpoints.
+  channel. The native runner completes `npm ci`, including the Node 24
+  `better-sqlite3` build, before mounting the workspace into the browser image.
+  Static checks, non-browser tests, release packaging, and the MarketScope
+  Docker build stay in a separate native runner job. Feature branches run CI
+  through pull requests. Direct push CI is limited to `main`, so the same commit
+  doesn't consume duplicate runners.
