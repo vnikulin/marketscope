@@ -12,3 +12,9 @@
   browsed Marketplace. Distance is available only when Facebook renders it.
 - Thumbnail caching is best effort. The extension skips non-JPEG responses,
   files above 200KB, failed downloads, and failed cache uploads.
+- UNVERIFIED-SANDBOX: The PWA manifest, app-shell service worker, and six
+  responsive viewport projects pass in Playwright Chromium. A real iPhone or
+  Android home-screen install over Tailscale HTTPS has not been tested. Serve
+  MarketScope on its `*.ts.net` hostname, add it to the home screen on each
+  device, launch it in standalone mode, and confirm listing views still fetch
+  current API data.
