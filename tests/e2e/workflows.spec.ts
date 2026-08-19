@@ -17,8 +17,10 @@ test('covers the complete PWA workflow', async ({
 
   await page.goto('/#/matches');
   await expect(
-    page.getByRole('button', { name: 'List', exact: true }),
+    page.getByRole('button', { name: 'Details', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await expect(page.locator('.listing-grid-list')).toBeVisible();
   await page.getByRole('button', { name: 'Tiles' }).click();
   await expect(page.locator('.listing-grid-tiles')).toBeVisible();
   const ozoneCard = page
@@ -142,6 +144,17 @@ test('covers the complete PWA workflow', async ({
   await expect.poll(() => new URL(page.url()).search).toBe('');
 
   await page.goto('/#/settings');
+  await expect(
+    page.getByText(
+      'Google verification happens in your Google Account, not inside MarketScope.',
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Open Google’s app-password instructions' }),
+  ).toHaveAttribute(
+    'href',
+    'https://support.google.com/accounts/answer/185833',
+  );
   await page.getByLabel('Provider').selectOption('CUSTOM');
   await page.getByLabel('Hostname').fill('127.0.0.1');
   await page.getByLabel('Port').fill('1025');

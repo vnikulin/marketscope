@@ -1,13 +1,12 @@
 import { useState, type ReactNode } from 'react';
 
-export type ListingLayout = 'list' | 'tiles';
+export type ListingLayout = 'details' | 'list' | 'tiles';
 
 const STORAGE_KEY = 'marketscope-listing-layout';
 
 function storedLayout(): ListingLayout {
-  return window.localStorage.getItem(STORAGE_KEY) === 'tiles'
-    ? 'tiles'
-    : 'list';
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  return stored === 'list' || stored === 'tiles' ? stored : 'details';
 }
 
 export function useListingLayout(): readonly [
@@ -35,6 +34,13 @@ export function ListingLayoutToggle({
       role="group"
       aria-label="Listing view"
     >
+      <button
+        type="button"
+        aria-pressed={layout === 'details'}
+        onClick={() => onChange('details')}
+      >
+        Details
+      </button>
       <button
         type="button"
         aria-pressed={layout === 'list'}

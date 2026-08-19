@@ -221,3 +221,13 @@
   reviews the form before saving it.
 - Provider OAuth sign-in remains outside V1 because the specification requires
   SMTP and explicitly excludes OAuth2 XOAUTH2.
+
+## 2026-08-19 PWA shell updates and listing detail layout
+
+- PWA navigations use the network first and refresh the cached app shell. The
+  cached shell remains an offline fallback. Hashed assets remain cache first.
+  This prevents an installed PWA from remaining on an old bundle after builds.
+- Listing views offer Details, List, and Tiles. Details keeps the full card,
+  List removes descriptions and uses smaller images, and Tiles uses the grid.
+- Gmail configuration states that Google performs the MFA step. MarketScope
+  accepts the resulting 16-digit app password and verifies it with a test send.
