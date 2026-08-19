@@ -74,6 +74,32 @@ const EMPTY: EditorState = {
   alertOnPriceChange: 'DECREASE',
 };
 
+function newEditorState(): EditorState {
+  const sourceUrl = new URLSearchParams(window.location.search).get(
+    'sourceUrl',
+  );
+  if (sourceUrl === null) return EMPTY;
+  try {
+    const source = new URL(sourceUrl);
+    if (
+      source.protocol !== 'https:' ||
+      source.hostname !== 'www.facebook.com' ||
+      !source.pathname.startsWith('/marketplace/')
+    ) {
+      return EMPTY;
+    }
+    const query = source.searchParams.get('query')?.trim() ?? '';
+    return {
+      ...EMPTY,
+      name: query || 'Facebook Marketplace search',
+      searchUrl: source.toString(),
+      requiredTerms: query.split(/\s+/u).filter(Boolean).join(', '),
+    };
+  } catch {
+    return EMPTY;
+  }
+}
+
 function joined(values: readonly string[] | undefined): string {
   return (values ?? []).join(', ');
 }
@@ -232,13 +258,26 @@ function Choice({
 }
 
 export function WatchlistEditor({ id }: { id?: string }): ReactNode {
-  const [state, setState] = useState<EditorState>(EMPTY);
+  const [state, setState] = useState<EditorState>(() =>
+    id === undefined ? newEditorState() : EMPTY,
+  );
   const [loading, setLoading] = useState(id !== undefined);
   const [error, setError] = useState('');
   const update = <K extends keyof EditorState>(
     key: K,
     value: EditorState[K],
   ): void => setState((current) => ({ ...current, [key]: value }));
+  useEffect(() => {
+    if (
+      id !== undefined ||
+      !new URLSearchParams(window.location.search).has('sourceUrl')
+    ) {
+      return;
+    }
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('sourceUrl');
+    window.history.replaceState(null, '', cleanUrl);
+  }, [id]);
   useEffect(() => {
     if (id === undefined) return;
     void request<{ watchlists: Watchlist[] }>('/api/watchlists')
@@ -374,7 +413,11 @@ export function WatchlistEditor({ id }: { id?: string }): ReactNode {
           <div>
             <p className="eyebrow">02</p>
             <h2>Price and location</h2>
-            <p>Prices use whole dollars here and integer cents in storage.</p>
+            <p>
+              Prices use whole dollars here. Set the ZIP code and radius in
+              Facebook before saving the search URL. MarketScope can enforce a
+              maximum distance only when Facebook displays one.
+            </p>
           </div>
           <div className="form-grid">
             <label>
@@ -450,7 +493,7 @@ export function WatchlistEditor({ id }: { id?: string }): ReactNode {
               />
             </label>
             <label>
-              <span>Maximum distance, miles</span>
+              <span>Maximum displayed distance, miles</span>
               <input
                 type="number"
                 min="0"

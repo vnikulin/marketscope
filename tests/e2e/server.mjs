@@ -41,6 +41,20 @@ const watchlist = {
   alertOnPriceChange: 'DECREASE',
 };
 await server.app.inject({ method: 'POST', url: '/api/watchlists', headers, payload: watchlist });
+await server.app.inject({
+  method: 'POST',
+  url: '/api/watchlists',
+  headers,
+  payload: {
+    ...watchlist,
+    name: 'Ozone Hyperlink',
+    searchUrl: 'https://www.facebook.com/marketplace/search/?query=ozone+hyperlink',
+    requiredTerms: ['ozone', 'hyperlink'],
+    optionalTerms: [],
+    excludedTerms: [],
+    priceRules: { maxCents: 200000, unknownPolicy: 'BLOCK' },
+  },
+});
 const tokenResponse = await server.app.inject({ method: 'POST', url: '/api/extension-tokens', headers, payload: { name: 'E2E browser' } });
 await server.app.inject({
   method: 'POST',
@@ -53,6 +67,9 @@ await server.app.inject({
       },
       {
         source: 'facebook', sourceListingId: 'e2e-blocked', url: 'https://www.facebook.com/marketplace/item/e2e-blocked/', title: '<img src=x onerror=alert(1)> Garmin case', description: 'Protective carrying case', price: 12000, priceText: '$120', location: 'Freeport, NY', sponsored: false, shipping: false, localPickup: true, postedAtText: 'Listed today', postedAtEstimate: Date.now() - 3600000, rawText: 'Garmin case $120 Freeport, NY',
+      },
+      {
+        source: 'facebook', sourceListingId: 'e2e-ozone', url: 'https://www.facebook.com/marketplace/item/e2e-ozone/', title: 'Ozone Hyperlink 13m', description: 'Green kite, like new', price: 150000, priceText: '$1,500', location: 'New York, NY', sponsored: false, shipping: false, localPickup: true, postedAtText: 'Listed 5 minutes ago', postedAtEstimate: Date.now() - 300000, rawText: 'Ozone Hyperlink 13m green $1,500 New York, NY',
       },
     ],
   },

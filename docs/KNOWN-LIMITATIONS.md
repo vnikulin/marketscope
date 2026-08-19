@@ -10,6 +10,9 @@
   push notifications in V1.
 - Price history contains only prices that MarketScope observed while the user
   browsed Marketplace. Distance is available only when Facebook renders it.
+  MarketScope cannot calculate a radius from an arbitrary ZIP code because it
+  does not geocode listing locations. Set the ZIP and radius in Facebook before
+  saving the search URL.
 - Thumbnail caching is best effort. The extension skips non-JPEG responses,
   files above 200KB, failed downloads, and failed cache uploads.
 - UNVERIFIED-SANDBOX: The PWA manifest, app-shell service worker, and six

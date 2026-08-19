@@ -8,6 +8,7 @@ import {
   StatusMessage,
 } from '../components.js';
 import type { Listing } from '../types.js';
+import { ListingLayoutToggle, useListingLayout } from '../listing-layout.js';
 
 interface DashboardData {
   activeWatchlists: number;
@@ -19,6 +20,7 @@ interface DashboardData {
 }
 
 export function Dashboard(): ReactNode {
+  const [layout, setLayout] = useListingLayout();
   const [data, setData] = useState<DashboardData>();
   const [error, setError] = useState('');
   useEffect(() => {
@@ -48,9 +50,12 @@ export function Dashboard(): ReactNode {
         title="Your Marketplace signal"
         detail="Listings appear here only after you browse Marketplace yourself."
         action={
-          <a className="button button-primary" href="#/watchlists/new">
-            New watchlist
-          </a>
+          <div className="page-actions">
+            <ListingLayoutToggle layout={layout} onChange={setLayout} />
+            <a className="button button-primary" href="#/watchlists/new">
+              New watchlist
+            </a>
+          </div>
         }
       />
       {error.length > 0 ? (
@@ -91,7 +96,7 @@ export function Dashboard(): ReactNode {
               detail="Browse Marketplace normally. Listings that pass at least one active watchlist will appear here."
             />
           ) : (
-            <div className="listing-grid">
+            <div className={`listing-grid listing-grid-${layout}`}>
               {data.recentListings.map((listing) => (
                 <ListingCard
                   key={listing.id}

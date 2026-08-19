@@ -186,3 +186,27 @@
 - Disabling stops the observer and removes controls, warnings, annotations, and
   card visibility rules from the open Marketplace page. Enabling starts a new
   observer against the current page without navigating or reloading Facebook.
+
+## 2026-08-19 Match tags and ZIP radius
+
+- A matched listing card shows only watchlist names whose verdict passed. WHY
+  still shows every evaluation, and a blocked card keeps every failed watchlist
+  name for diagnosis.
+- MarketScope cannot calculate distance from an arbitrary ZIP code without
+  coordinates or geocoding. Users set ZIP and radius in Facebook before saving
+  the opaque search URL. MarketScope applies its maximum-distance rule only to
+  distances Facebook rendered on the listing.
+
+## 2026-08-19 Listing layouts
+
+- Dashboard, Matches, Favorites, History, and Blocked share List and Tiles
+  controls. The PWA stores the choice in browser local storage and applies it
+  when the user moves between listing views.
+
+## 2026-08-19 Marketplace quick add
+
+- The extension adds an "Add current search to MarketScope" context-menu item
+  on Facebook Marketplace pages. It opens the local watchlist editor with the
+  current page URL, name, and comma-separated query terms prefilled.
+- The user reviews and saves the form. The extension doesn't create Facebook
+  requests or silently create a watchlist with inferred settings.

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { request } from '../api.js';
 import { EmptyState, ListingCard, PageHeader, StatusMessage } from '../components.js';
+import { ListingLayoutToggle, useListingLayout } from '../listing-layout.js';
 import type { Listing } from '../types.js';
 
 const COPY = {
@@ -12,6 +13,7 @@ const COPY = {
 } as const;
 
 export function ListingsView({ view }: { view: keyof typeof COPY }): ReactNode {
+  const [layout, setLayout] = useListingLayout();
   const [listings, setListings] = useState<Listing[]>();
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -26,8 +28,8 @@ export function ListingsView({ view }: { view: keyof typeof COPY }): ReactNode {
     setListings((current) => (current ?? []).flatMap((listing) => listing.id !== id ? [listing] : view === 'favorites' && !favorite ? [] : [{ ...listing, favorite }]));
   }
   return <>
-    <PageHeader title={copy[0]} detail={copy[1]} action={<label className="search-box"><span className="sr-only">Search listings</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search listings" /></label>} />
+    <PageHeader title={copy[0]} detail={copy[1]} action={<div className="page-actions"><label className="search-box"><span className="sr-only">Search listings</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search listings" /></label><ListingLayoutToggle layout={layout} onChange={setLayout} /></div>} />
     {error.length > 0 ? <StatusMessage tone="error">{error}</StatusMessage> : null}
-    {listings === undefined ? <div className="loading-grid" aria-label={`Loading ${view}`} /> : visible.length === 0 ? <EmptyState title={search.length > 0 ? 'No results' : copy[2]} detail={search.length > 0 ? 'Try a different title, seller, or location.' : copy[3]} /> : <div className="listing-grid">{visible.map((listing) => <ListingCard key={listing.id} listing={listing} onFavorite={(favorite) => replaceFavorite(listing.id, favorite)} />)}</div>}
+    {listings === undefined ? <div className="loading-grid" aria-label={`Loading ${view}`} /> : visible.length === 0 ? <EmptyState title={search.length > 0 ? 'No results' : copy[2]} detail={search.length > 0 ? 'Try a different title, seller, or location.' : copy[3]} /> : <div className={`listing-grid listing-grid-${layout}`}>{visible.map((listing) => <ListingCard key={listing.id} listing={listing} onFavorite={(favorite) => replaceFavorite(listing.id, favorite)} />)}</div>}
   </>;
 }

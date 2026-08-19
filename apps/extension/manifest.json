@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MarketScope",
   "version": "0.0.0",
-  "permissions": ["alarms", "storage"],
+  "permissions": ["alarms", "contextMenus", "storage"],
   "action": {
     "default_title": "MarketScope",
     "default_popup": "popup.html"

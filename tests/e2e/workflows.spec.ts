@@ -16,14 +16,37 @@ test('covers the complete PWA workflow', async ({
   ).toHaveAttribute('href', '#/watchlists/new');
 
   await page.goto('/#/matches');
+  await expect(page.getByRole('button', { name: 'List' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Tiles' }).click();
+  await expect(page.locator('.listing-grid-tiles')).toBeVisible();
+  const ozoneCard = page
+    .getByRole('heading', { name: 'Ozone Hyperlink 13m' })
+    .locator('xpath=ancestor::article');
+  await expect(ozoneCard.locator('.listing-tags')).toContainText(
+    'Ozone Hyperlink',
+  );
+  await expect(ozoneCard.locator('.listing-tags')).not.toContainText(
+    'Garmin chartplotters',
+  );
+  const garminCard = page
+    .getByRole('heading', { name: 'Garmin GPSMAP 1042xsv' })
+    .locator('xpath=ancestor::article');
+  await expect(garminCard).toBeVisible();
+  await garminCard.getByRole('button', { name: 'WHY' }).click();
+  await expect(garminCard.getByText('Filter breakdown')).toHaveCount(2);
   await expect(
-    page.getByRole('heading', { name: 'Garmin GPSMAP 1042xsv' }),
+    garminCard.getByRole('heading', { name: 'Ozone Hyperlink', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'WHY' }).click();
-  await expect(page.getByText('Filter breakdown')).toBeVisible();
   await expect(page.getByText('FINAL')).toHaveCount(0);
 
   await page.goto('/#/blocked');
+  await expect(page.getByRole('button', { name: 'Tiles' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(
     page.getByRole('heading', {
       name: '<img src=x onerror=alert(1)> Garmin case',
@@ -86,6 +109,20 @@ test('covers the complete PWA workflow', async ({
   await expect(
     page.getByRole('heading', { name: 'Test boats edited (copy)' }),
   ).toHaveCount(0);
+
+  const quickAddUrl =
+    'https://www.facebook.com/marketplace/search/?query=garmin+1042+xsv&exact=false';
+  await page.goto(
+    `/?sourceUrl=${encodeURIComponent(quickAddUrl)}#/watchlists/new`,
+  );
+  await expect(page.getByLabel('Marketplace search URL')).toHaveValue(
+    quickAddUrl,
+  );
+  await expect(page.getByLabel('Name')).toHaveValue('garmin 1042 xsv');
+  await expect(page.getByLabel('Required terms, comma separated')).toHaveValue(
+    'garmin, 1042, xsv',
+  );
+  await expect.poll(() => new URL(page.url()).search).toBe('');
 
   await page.goto('/#/settings');
   await page.getByLabel('Provider').selectOption('CUSTOM');

@@ -4,8 +4,10 @@ import {
   ListingUploadQueue,
   setPreferences,
   ThumbnailUploader,
+  transportKeys,
 } from './transport.js';
-import type { ContentMessage } from './types.js';
+import { QUICK_ADD_MENU_ID, watchlistEditorUrl } from './quick-add.js';
+import type { ConnectionSettings, ContentMessage } from './types.js';
 
 function chromeStorage(area: chrome.storage.StorageArea): KeyValueStorage {
   return {
@@ -38,6 +40,36 @@ const uploadQueue = new ListingUploadQueue(
 );
 
 void uploadQueue.recover();
+
+chrome.runtime.onInstalled.addListener(() => {
+  void chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: QUICK_ADD_MENU_ID,
+      title: 'Add current search to MarketScope',
+      contexts: ['page', 'link', 'image', 'video'],
+      documentUrlPatterns: ['https://www.facebook.com/marketplace/*'],
+    });
+  });
+});
+
+chrome.contextMenus.onClicked.addListener((info) => {
+  if (info.menuItemId !== QUICK_ADD_MENU_ID || info.pageUrl === undefined)
+    return;
+  const marketplaceUrl = info.pageUrl;
+  void localStorage
+    .get<ConnectionSettings>(transportKeys.connection)
+    .then(async (connection) => {
+      if (connection === undefined) {
+        throw new Error('Connect MarketScope before using quick add');
+      }
+      await chrome.tabs.create({
+        url: watchlistEditorUrl(connection, marketplaceUrl),
+      });
+    })
+    .catch((error: unknown) => {
+      console.error('MarketScope could not open quick add', error);
+    });
+});
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === UPLOAD_RETRY_ALARM) void uploadQueue.flush();
