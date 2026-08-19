@@ -210,3 +210,14 @@
   current page URL, name, and comma-separated query terms prefilled.
 - The user reviews and saves the form. The extension doesn't create Facebook
   requests or silently create a watchlist with inferred settings.
+
+## 2026-08-19 Listing cleanup and listing-based drafts
+
+- Clear blocked results permanently deletes blocked, non-favorited listings.
+  SQLite foreign keys remove their match, price, and notification records.
+  Favorites are preserved and the result reports how many were kept.
+- Every PWA listing can create a watchlist draft. The draft prefills a manual
+  Facebook search URL, title terms, maximum price, city, and state. The user
+  reviews the form before saving it.
+- Provider OAuth sign-in remains outside V1 because the specification requires
+  SMTP and explicitly excludes OAuth2 XOAUTH2.

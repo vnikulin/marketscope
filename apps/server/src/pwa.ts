@@ -169,12 +169,38 @@ export function setFavorite(
       )
       .run(listingId, now);
   } else {
-    database.prepare('DELETE FROM favorites WHERE listing_id = ?').run(listingId);
+    database
+      .prepare('DELETE FROM favorites WHERE listing_id = ?')
+      .run(listingId);
   }
   return true;
 }
 
-function count(database: Database.Database, sql: string, ...values: unknown[]): number {
+export function deleteBlockedListings(database: Database.Database): {
+  deleted: number;
+  preservedFavorites: number;
+} {
+  const blocked = listPwaListings(database).filter(
+    (listing) =>
+      listing.evaluations.length > 0 &&
+      !listing.evaluations.some((evaluation) => evaluation.verdict.passed),
+  );
+  const removable = blocked.filter((listing) => !listing.favorite);
+  const remove = database.prepare('DELETE FROM listings WHERE id = ?');
+  database.transaction(() => {
+    for (const listing of removable) remove.run(listing.id);
+  })();
+  return {
+    deleted: removable.length,
+    preservedFavorites: blocked.length - removable.length,
+  };
+}
+
+function count(
+  database: Database.Database,
+  sql: string,
+  ...values: unknown[]
+): number {
   const row = database.prepare(sql).get(...values) as { value: number };
   return row.value;
 }
@@ -192,14 +218,20 @@ export function diagnostics(
     .prepare('SELECT MAX(last_seen) AS value FROM listings')
     .get() as { value: number | null };
   const lastSend = database
-    .prepare("SELECT MAX(updated_at) AS value FROM notifications WHERE state = 'sent'")
+    .prepare(
+      "SELECT MAX(updated_at) AS value FROM notifications WHERE state = 'sent'",
+    )
     .get() as { value: number | null };
   const migrations = database
-    .prepare('SELECT version, name, applied_at AS appliedAt FROM schema_migrations ORDER BY version')
+    .prepare(
+      'SELECT version, name, applied_at AS appliedAt FROM schema_migrations ORDER BY version',
+    )
     .all();
   const thumbnails = thumbnailCache.stats();
-  const databaseBytes = databasePath === ':memory:' ? 0 : statSync(databasePath).size;
-  const disk = databasePath === ':memory:' ? undefined : statfsSync(databasePath);
+  const databaseBytes =
+    databasePath === ':memory:' ? 0 : statSync(databasePath).size;
+  const disk =
+    databasePath === ':memory:' ? undefined : statfsSync(databasePath);
   return {
     serverVersion: '0.0.0',
     extensionVersion: '0.0.0',

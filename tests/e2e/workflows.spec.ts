@@ -16,10 +16,9 @@ test('covers the complete PWA workflow', async ({
   ).toHaveAttribute('href', '#/watchlists/new');
 
   await page.goto('/#/matches');
-  await expect(page.getByRole('button', { name: 'List' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(
+    page.getByRole('button', { name: 'List', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Tiles' }).click();
   await expect(page.locator('.listing-grid-tiles')).toBeVisible();
   const ozoneCard = page
@@ -42,6 +41,18 @@ test('covers the complete PWA workflow', async ({
   ).toBeVisible();
   await expect(page.getByText('FINAL')).toHaveCount(0);
 
+  await garminCard.getByRole('button', { name: 'Create watchlist' }).click();
+  await expect(page.getByLabel('Name')).toHaveValue('Garmin GPSMAP 1042xsv');
+  await expect(page.getByLabel('Marketplace search URL')).toHaveValue(
+    'https://www.facebook.com/marketplace/search/?query=Garmin+GPSMAP+1042xsv',
+  );
+  await expect(page.getByLabel('Required terms, comma separated')).toHaveValue(
+    'Garmin, GPSMAP, 1042xsv',
+  );
+  await expect(page.getByLabel('Maximum price')).toHaveValue('500');
+  await expect(page.getByLabel('Allowed cities')).toHaveValue('Freeport');
+  await expect(page.getByLabel('Allowed states')).toHaveValue('NY');
+
   await page.goto('/#/blocked');
   await expect(page.getByRole('button', { name: 'Tiles' })).toHaveAttribute(
     'aria-pressed',
@@ -53,6 +64,12 @@ test('covers the complete PWA workflow', async ({
     }),
   ).toBeVisible();
   await expect(page.locator('img[src="x"]')).toHaveCount(0);
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'Clear blocked results' }).click();
+  await expect(page.getByText('Cleared 1 blocked listing.')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Nothing blocked' }),
+  ).toBeVisible();
 
   await page.goto('/#/history');
   const favorite = page

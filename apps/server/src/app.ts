@@ -24,7 +24,12 @@ import {
 import { ingestListings } from './listings.js';
 import { loadMigrations, type Migration } from './migrations.js';
 import { NotificationWorker } from './notifications.js';
-import { diagnostics, listPwaListings, setFavorite } from './pwa.js';
+import {
+  deleteBlockedListings,
+  diagnostics,
+  listPwaListings,
+  setFavorite,
+} from './pwa.js';
 import {
   getRetentionDays,
   setRetentionDays,
@@ -546,6 +551,11 @@ export async function createServer(
       return true;
     });
     return { listings };
+  });
+
+  app.delete('/api/listings/blocked', async (request, reply) => {
+    if (requireSession(auth, request, reply, true) === undefined) return;
+    return deleteBlockedListings(database);
   });
 
   app.put<{ Params: { id: string } }>(

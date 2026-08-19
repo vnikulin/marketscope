@@ -9,6 +9,7 @@ import {
 import {
   closeTestServer,
   createAdmin,
+  adminHeaders,
   createExtensionToken,
   createWatchlist,
   listing,
@@ -167,6 +168,67 @@ describe('listing ingest and retention', () => {
         .prepare('SELECT COUNT(*) AS count FROM listings')
         .get(),
     ).toEqual({ count: 1 });
+  });
+
+  it('clears blocked listings while preserving favorites', async () => {
+    testServer = await makeTestServer();
+    const session = await createAdmin(testServer);
+    await createWatchlist(testServer, session);
+    const extension = await createExtensionToken(testServer, session);
+    await testServer.server.app.inject({
+      method: 'POST',
+      url: '/api/extension/listings',
+      headers: { authorization: `Bearer ${extension.token}` },
+      payload: {
+        listings: [
+          listing('clear-match'),
+          listing('clear-blocked', {
+            title: 'Protective case only',
+            rawText: 'Garmin protective case only $25 Freeport, NY',
+          }),
+          listing('keep-favorite', {
+            title: 'Another Garmin case',
+            rawText: 'Another Garmin case $25 Freeport, NY',
+          }),
+        ],
+      },
+    });
+    const favorite = testServer.server.database
+      .prepare(
+        "SELECT id FROM listings WHERE source_listing_id = 'keep-favorite'",
+      )
+      .get() as { id: string };
+    await testServer.server.app.inject({
+      method: 'PUT',
+      url: `/api/listings/${favorite.id}/favorite`,
+      headers: adminHeaders(session),
+    });
+
+    const response = await testServer.server.app.inject({
+      method: 'DELETE',
+      url: '/api/listings/blocked',
+      headers: adminHeaders(session),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ deleted: 1, preservedFavorites: 1 });
+    expect(
+      testServer.server.database
+        .prepare(
+          'SELECT source_listing_id FROM listings ORDER BY source_listing_id',
+        )
+        .all(),
+    ).toEqual([
+      { source_listing_id: 'clear-match' },
+      { source_listing_id: 'keep-favorite' },
+    ]);
+    expect(
+      testServer.server.database
+        .prepare(
+          'SELECT COUNT(*) AS count FROM watchlist_matches WHERE listing_id NOT IN (SELECT id FROM listings)',
+        )
+        .get(),
+    ).toEqual({ count: 0 });
   });
 
   it('prunes expired listings except favorites and ignore-rule references', async () => {

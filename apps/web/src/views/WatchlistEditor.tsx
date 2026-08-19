@@ -9,6 +9,7 @@ import type {
   Watchlist,
   WatchlistInput,
 } from '../types.js';
+import { consumeListingWatchlistDraft } from '../watchlist-draft.js';
 
 interface EditorState {
   name: string;
@@ -75,10 +76,13 @@ const EMPTY: EditorState = {
 };
 
 function newEditorState(): EditorState {
+  const listingDraft = consumeListingWatchlistDraft();
   const sourceUrl = new URLSearchParams(window.location.search).get(
     'sourceUrl',
   );
-  if (sourceUrl === null) return EMPTY;
+  if (sourceUrl === null) {
+    return listingDraft === undefined ? EMPTY : { ...EMPTY, ...listingDraft };
+  }
   try {
     const source = new URL(sourceUrl);
     if (
