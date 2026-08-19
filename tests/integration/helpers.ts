@@ -8,6 +8,7 @@ import {
   createServer,
   type MarketScopeServer,
 } from '../../apps/server/src/app.js';
+import type { SendMail } from '../../apps/server/src/email.js';
 import type { WatchlistInput } from '../../apps/server/src/types.js';
 
 export interface TestServer {
@@ -55,6 +56,7 @@ export function responseCookie(response: LightMyRequestResponse): string {
 
 export async function makeTestServer(
   initialNow = Date.UTC(2026, 7, 18, 16, 0, 0),
+  options: { sendMail?: SendMail } = {},
 ): Promise<TestServer> {
   const directory = mkdtempSync(join(tmpdir(), 'marketscope-integration-'));
   const databasePath = join(directory, 'marketscope.db');
@@ -63,6 +65,9 @@ export async function makeTestServer(
     databasePath,
     now: () => clock.now,
     startRetention: false,
+    startNotifications: false,
+    thumbnailDirectory: join(directory, 'thumbnails'),
+    ...options,
   });
   return { server, directory, databasePath, clock };
 }

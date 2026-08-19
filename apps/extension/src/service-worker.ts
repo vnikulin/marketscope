@@ -3,6 +3,7 @@ import {
   type KeyValueStorage,
   ListingUploadQueue,
   setPreferences,
+  ThumbnailUploader,
 } from './transport.js';
 import type { ContentMessage } from './types.js';
 
@@ -23,6 +24,7 @@ const sessionStorage = chromeStorage(chrome.storage.session);
 const request = (url: string, init: RequestInit): Promise<Response> =>
   fetch(url, init);
 const UPLOAD_RETRY_ALARM = 'marketscope-upload-retry';
+const thumbnailUploader = new ThumbnailUploader(localStorage, request);
 const uploadQueue = new ListingUploadQueue(
   sessionStorage,
   localStorage,
@@ -32,6 +34,7 @@ const uploadQueue = new ListingUploadQueue(
       when: Date.now() + delay,
     });
   },
+  (listings) => thumbnailUploader.upload(listings),
 );
 
 void uploadQueue.recover();

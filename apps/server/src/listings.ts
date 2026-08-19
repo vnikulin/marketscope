@@ -10,6 +10,10 @@ import type {
 import type { IngestListing, Watchlist } from './types.js';
 import { toFilterDefinition } from './types.js';
 import type { WatchlistRepository } from './watchlists.js';
+import {
+  enqueueNotification,
+  shouldAlertOnPriceChange,
+} from './notifications.js';
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -216,6 +220,37 @@ export async function ingestListings(
           Number(!watchlist.seeded),
         );
       }
+
+      const alertWatchlists = watchlists.flatMap((watchlist) => {
+        const verdict = item.verdicts.get(watchlist.id);
+        if (
+          verdict === undefined ||
+          !watchlist.seeded ||
+          !watchlist.emailEnabled ||
+          !verdict.passed
+        ) {
+          return [];
+        }
+        const shouldAlert =
+          existing === undefined ||
+          shouldAlertOnPriceChange(watchlist, existing.price_cents, priceCents);
+        return shouldAlert
+          ? [
+              {
+                id: watchlist.id,
+                name: watchlist.name,
+                relevance: verdict.relevance,
+              },
+            ]
+          : [];
+      });
+      enqueueNotification(
+        database,
+        listingId,
+        item.input,
+        alertWatchlists,
+        now,
+      );
     }
 
     if (listings.length > 0) {

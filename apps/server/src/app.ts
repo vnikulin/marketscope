@@ -11,19 +11,34 @@ import Fastify, {
 
 import { AuthService, type AuthenticatedSession } from './auth.js';
 import { openDatabase } from './database.js';
+import {
+  EMAIL_PRESETS,
+  EmailSettingsRepository,
+  parseSmtpConfig,
+  publicEmailSettings,
+  sendSmtpMail,
+  type SendMail,
+} from './email.js';
 import { ingestListings } from './listings.js';
 import { loadMigrations, type Migration } from './migrations.js';
+import { NotificationWorker } from './notifications.js';
 import {
   getRetentionDays,
   setRetentionDays,
   startRetentionJob,
 } from './retention.js';
 import {
+  parseThumbnailUpload,
   parseIngestListing,
   parseWatchlistInput,
   ValidationError,
 } from './validation.js';
 import { WatchlistRepository } from './watchlists.js';
+import {
+  attachThumbnail,
+  MAX_THUMBNAIL_BYTES,
+  ThumbnailCache,
+} from './thumbnails.js';
 
 const SETUP_ALLOWED_PATHS = new Set([
   '/health',
@@ -38,11 +53,18 @@ export interface ServerOptions {
   migrations?: readonly Migration[];
   now?: () => number;
   startRetention?: boolean;
+  startNotifications?: boolean;
+  notificationPollIntervalMs?: number;
+  sendMail?: SendMail;
+  thumbnailDirectory?: string;
+  thumbnailCacheMaxBytes?: number;
 }
 
 export interface MarketScopeServer {
   app: FastifyInstance;
   database: Database.Database;
+  notificationWorker: NotificationWorker;
+  thumbnailCache: ThumbnailCache;
 }
 
 function defaultMigrations(): Migration[] {
@@ -145,10 +167,26 @@ export async function createServer(
 
   const auth = new AuthService(database, now);
   const watchlists = new WatchlistRepository(database, now);
+  const emailSettings = new EmailSettingsRepository(database, now);
+  const sendMail = options.sendMail ?? sendSmtpMail;
+  const notificationWorker = new NotificationWorker(
+    database,
+    emailSettings,
+    now,
+    sendMail,
+  );
+  const notificationsEnabled = options.startNotifications !== false;
+  const thumbnailCache = new ThumbnailCache(
+    options.thumbnailDirectory,
+    options.thumbnailCacheMaxBytes,
+  );
   const retentionTimer =
     options.startRetention === false
       ? undefined
       : startRetentionJob(database, now);
+  if (notificationsEnabled) {
+    notificationWorker.start(options.notificationPollIntervalMs);
+  }
 
   app.addHook('onRequest', async (request, reply) => {
     const path = request.url.split('?', 1)[0] ?? request.url;
@@ -161,6 +199,7 @@ export async function createServer(
     if (retentionTimer !== undefined) {
       clearInterval(retentionTimer);
     }
+    notificationWorker.stop();
     database.close();
   });
 
@@ -183,6 +222,19 @@ export async function createServer(
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
+
+  app.get<{ Params: { file: string } }>(
+    '/api/thumbnails/:file',
+    async (request, reply) => {
+      const match = /^([a-f0-9]{64})\.jpg$/.exec(request.params.file);
+      if (match === null) return sendNotFound(reply);
+      const hash = match[1];
+      if (hash === undefined) return sendNotFound(reply);
+      const bytes = thumbnailCache.read(hash);
+      if (bytes === undefined) return sendNotFound(reply);
+      return reply.type('image/jpeg').send(bytes);
+    },
+  );
 
   app.get('/api/setup/status', async () => ({ required: !auth.hasAdmin() }));
 
@@ -425,9 +477,29 @@ export async function createServer(
       );
     }
     const listings = body.listings.map(parseIngestListing);
-    return reply.send(
-      await ingestListings(database, watchlists, listings, now()),
+    const result = await ingestListings(database, watchlists, listings, now());
+    if (notificationsEnabled) void notificationWorker.processDue();
+    return reply.send(result);
+  });
+
+  app.post('/api/extension/thumbnails', async (request, reply) => {
+    if (!requireExtension(auth, request, reply)) {
+      return;
+    }
+    const upload = parseThumbnailUpload(request.body);
+    const bytes = Buffer.from(upload.jpegBase64, 'base64');
+    if (bytes.byteLength > MAX_THUMBNAIL_BYTES) {
+      throw new ValidationError('thumbnail exceeds the 200KB limit');
+    }
+    const hash = attachThumbnail(
+      database,
+      thumbnailCache,
+      upload.sourceListingId,
+      upload.url,
+      bytes,
     );
+    if (hash === undefined) return sendNotFound(reply);
+    return reply.code(201).send({ hash });
   });
 
   app.get('/api/listings', async (request, reply) => {
@@ -479,6 +551,55 @@ export async function createServer(
     return { retentionDays: getRetentionDays(database) };
   });
 
+  app.get('/api/settings/email', async (request, reply) => {
+    if (requireSession(auth, request, reply, false) === undefined) {
+      return;
+    }
+    return {
+      presets: EMAIL_PRESETS,
+      settings: publicEmailSettings(emailSettings.get()),
+    };
+  });
+
+  app.put('/api/settings/email', async (request, reply) => {
+    if (requireSession(auth, request, reply, true) === undefined) {
+      return;
+    }
+    return {
+      settings: publicEmailSettings(
+        emailSettings.save(parseSmtpConfig(request.body)),
+      ),
+    };
+  });
+
+  app.post('/api/settings/email/test', async (request, reply) => {
+    if (requireSession(auth, request, reply, true) === undefined) {
+      return;
+    }
+    const config = emailSettings.get();
+    if (config === undefined) {
+      return reply.code(409).send({ error: 'EMAIL_NOT_CONFIGURED' });
+    }
+    try {
+      await sendMail(config, {
+        subject: 'MarketScope test email',
+        text: 'MarketScope sent this message to verify your SMTP settings.',
+      });
+    } catch (error) {
+      let detail = error instanceof Error ? error.message : String(error);
+      if (config.password !== undefined) {
+        detail = detail.replaceAll(config.password, '[REDACTED]');
+      }
+      emailSettings.markTestFailed(detail.slice(0, 1_000));
+      return reply
+        .code(502)
+        .send({ error: 'EMAIL_TEST_FAILED', message: detail.slice(0, 1_000) });
+    }
+    const verified = emailSettings.markVerified();
+    if (notificationsEnabled) void notificationWorker.processDue();
+    return { settings: publicEmailSettings(verified), sent: true };
+  });
+
   app.put('/api/settings/retention', async (request, reply) => {
     if (requireSession(auth, request, reply, true) === undefined) {
       return;
@@ -496,5 +617,5 @@ export async function createServer(
     return { retentionDays: getRetentionDays(database) };
   });
 
-  return { app, database };
+  return { app, database, notificationWorker, thumbnailCache };
 }

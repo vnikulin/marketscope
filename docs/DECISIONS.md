@@ -72,3 +72,40 @@
 - Browser regex checks run in a packaged dedicated worker with a 50 millisecond
   timeout and a 4 KB UTF-8 input cap. Node checks keep using `worker_threads`.
   The filter check construction remains shared by both runtimes.
+
+## 2026-08-19 M5 SMTP provider checks
+
+- Google still supports 16-digit app passwords for accounts with 2-Step
+  Verification. Some managed, security-key-only, and Advanced Protection
+  accounts can't create them. Source: [Google Account Help](https://support.google.com/accounts/answer/185833?hl=en).
+- Microsoft revised the Exchange Online SMTP AUTH basic authentication
+  schedule on January 27, 2026. Behavior stays unchanged through December 2026. Microsoft will disable it by default for existing tenants at the end
+  of December 2026, but administrators can re-enable it. Microsoft plans to
+  announce the final removal date in the second half of 2027. Source:
+  [Exchange Team announcement](https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835).
+- MarketScope uses Nodemailer 9.0.4 for generic SMTP. It was the current npm
+  release checked on August 19, 2026. Source:
+  [Nodemailer on npm](https://www.npmjs.com/package/nodemailer).
+- Custom SMTP accepts `NONE` only for an explicitly selected custom server.
+  Mailpit listens without encryption by default, and some local relays do the
+  same. Gmail and Microsoft 365 always select STARTTLS. Source:
+  [Mailpit sending documentation](https://mailpit.axllent.org/docs/usage/sending-messages/).
+
+## 2026-08-19 M5 notification and thumbnail behavior
+
+- Saving SMTP settings clears their verified state. A successful test message
+  sets `verifiedAt`. The worker leaves queued alerts untouched until that field
+  exists.
+- A first delivery failure uses state `failed`. Later scheduled attempts use
+  `retrying`. The sixth failed attempt moves the notification to `dead` after
+  the required 1 minute, 5 minute, 15 minute, 1 hour, and 6 hour delays.
+- Notification rows snapshot the listing and matching watchlist names at queue
+  time. A later watchlist rename or deletion can't change an already queued
+  email.
+- Email stays plain text and omits images. CID attachments would increase every
+  message size, while a normal link to the local cache may not load when the
+  mail client is outside the tailnet. The thumbnail cache remains available to
+  the later PWA milestone.
+- The extension service worker downloads only HTTPS JPEG responses from
+  `fbcdn.net` subdomains after listing ingest succeeds. It rejects responses
+  above 200KB. The server stores SHA-256-named files and applies a 2GB LRU cap.

@@ -324,7 +324,7 @@ export function parseWatchlistInput(value: unknown): WatchlistInput {
   };
 }
 
-function canonicalFacebookUrl(value: string): string {
+export function canonicalFacebookUrl(value: string): string {
   let url: URL;
   try {
     url = new URL(value);
@@ -341,6 +341,34 @@ function canonicalFacebookUrl(value: string): string {
   url.search = '';
   url.hash = '';
   return url.toString();
+}
+
+export interface ThumbnailUpload {
+  sourceListingId?: string;
+  url: string;
+  jpegBase64: string;
+}
+
+export function parseThumbnailUpload(value: unknown): ThumbnailUpload {
+  if (!isRecord(value)) {
+    throw new ValidationError('thumbnail upload must be an object');
+  }
+  const sourceListingId = optionalString(value, 'sourceListingId')?.trim();
+  const jpegBase64 = requiredString(value, 'jpegBase64');
+  if (
+    jpegBase64.length > 275_000 ||
+    jpegBase64.length % 4 !== 0 ||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(jpegBase64)
+  ) {
+    throw new ValidationError('jpegBase64 must be valid base64 under 200KB');
+  }
+  return {
+    ...(sourceListingId === undefined || sourceListingId.length === 0
+      ? {}
+      : { sourceListingId }),
+    url: canonicalFacebookUrl(requiredString(value, 'url')),
+    jpegBase64,
+  };
 }
 
 export function parseIngestListing(value: unknown): IngestListing {

@@ -5,6 +5,7 @@
   "permissions": ["alarms", "storage"],
   "host_permissions": [
     "https://*.ts.net/*",
+    "https://*.fbcdn.net/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],

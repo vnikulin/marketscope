@@ -13,6 +13,9 @@ MarketScope requests only the permissions used by M4.
 
 ## Required host permissions
 
+- `https://*.fbcdn.net/*`: Lets the service worker cache JPEG thumbnails that
+  Facebook already rendered. Each response is capped at 200KB. The content
+  script never makes this request.
 - `https://*.ts.net/*`: Lets the extension service worker read watchlists and
   send observed listings to the MarketScope server over the required Tailscale
   HTTPS transport.

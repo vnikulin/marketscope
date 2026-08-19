@@ -28,7 +28,10 @@ describe('database migrations', () => {
     expect(database.pragma('busy_timeout', { simple: true })).toBe(5000);
     expect(
       database.prepare('SELECT version, name FROM schema_migrations').all(),
-    ).toEqual([{ version: 1, name: '001_initial.sql' }]);
+    ).toEqual([
+      { version: 1, name: '001_initial.sql' },
+      { version: 2, name: '002_notifications.sql' },
+    ]);
 
     const tables = database
       .prepare(
@@ -43,6 +46,7 @@ describe('database migrations', () => {
         'listing_price_history',
         'listings',
         'notifications',
+        'notification_watchlists',
         'schema_migrations',
         'sessions',
         'users',
@@ -68,8 +72,8 @@ describe('database migrations', () => {
         openDatabase(databasePath, [
           ...sourceMigrations,
           {
-            version: 2,
-            name: '002_deliberately_broken.sql',
+            version: 3,
+            name: '003_deliberately_broken.sql',
             sql: 'CREATE TABLE partial_state (id TEXT); THIS IS NOT SQL;',
           },
         ]),
