@@ -69,6 +69,14 @@ export class ThumbnailCache {
     return join(this.#directory, `${hash}.jpg`);
   }
 
+  public stats(): { files: number; bytes: number } {
+    const entries = this.#entries();
+    return {
+      files: entries.length,
+      bytes: entries.reduce((sum, entry) => sum + entry.size, 0),
+    };
+  }
+
   #entries(): CacheEntry[] {
     if (!existsSync(this.#directory)) return [];
     return readdirSync(this.#directory, { withFileTypes: true })

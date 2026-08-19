@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import cookie from '@fastify/cookie';
@@ -10,6 +11,7 @@ import Fastify, {
 } from 'fastify';
 
 import { AuthService, type AuthenticatedSession } from './auth.js';
+import { createBackup, restoreBackup } from './backup.js';
 import { openDatabase } from './database.js';
 import {
   EMAIL_PRESETS,
@@ -22,6 +24,7 @@ import {
 import { ingestListings } from './listings.js';
 import { loadMigrations, type Migration } from './migrations.js';
 import { NotificationWorker } from './notifications.js';
+import { diagnostics, listPwaListings, setFavorite } from './pwa.js';
 import {
   getRetentionDays,
   setRetentionDays,
@@ -34,6 +37,7 @@ import {
   ValidationError,
 } from './validation.js';
 import { WatchlistRepository } from './watchlists.js';
+import { registerWebApp } from './web.js';
 import {
   attachThumbnail,
   MAX_THUMBNAIL_BYTES,
@@ -58,6 +62,8 @@ export interface ServerOptions {
   sendMail?: SendMail;
   thumbnailDirectory?: string;
   thumbnailCacheMaxBytes?: number;
+  backupDirectory?: string;
+  webDirectory?: string;
 }
 
 export interface MarketScopeServer {
@@ -78,6 +84,13 @@ function defaultMigrations(): Migration[] {
     ? sourceDirectory
     : builtDirectory;
   return loadMigrations(directory);
+}
+
+function defaultWebDirectory(): string | undefined {
+  const sourceDirectory = fileURLToPath(new URL('../../web/dist', import.meta.url));
+  const builtDirectory = fileURLToPath(new URL('../../../web/dist', import.meta.url));
+  if (existsSync(sourceDirectory)) return sourceDirectory;
+  return existsSync(builtDirectory) ? builtDirectory : undefined;
 }
 
 function bodyRecord(body: unknown): Record<string, unknown> {
@@ -157,6 +170,7 @@ export async function createServer(
   options: ServerOptions,
 ): Promise<MarketScopeServer> {
   const now = options.now ?? Date.now;
+  const startedAt = now();
   const database = openDatabase(
     options.databasePath,
     options.migrations ?? defaultMigrations(),
@@ -190,7 +204,11 @@ export async function createServer(
 
   app.addHook('onRequest', async (request, reply) => {
     const path = request.url.split('?', 1)[0] ?? request.url;
-    if (!auth.hasAdmin() && !SETUP_ALLOWED_PATHS.has(path)) {
+    if (
+      !auth.hasAdmin() &&
+      path.startsWith('/api/') &&
+      !SETUP_ALLOWED_PATHS.has(path)
+    ) {
       await reply.code(428).send({ error: 'SETUP_REQUIRED' });
     }
   });
@@ -506,19 +524,45 @@ export async function createServer(
     if (requireSession(auth, request, reply, false) === undefined) {
       return;
     }
-    return {
-      listings: database
-        .prepare(
-          `SELECT id, source, source_listing_id AS sourceListingId,
-             canonical_url AS url, title, description, price_cents AS price,
-             price_text AS priceText, location, distance_miles AS distanceMiles,
-             seller_name AS sellerName, first_seen AS firstSeen,
-             last_seen AS lastSeen, last_alerted AS lastAlerted
-           FROM listings ORDER BY first_seen DESC`,
-        )
-        .all(),
-    };
+    const view = (request.query as { view?: string }).view ?? 'history';
+    if (!['matches', 'favorites', 'history', 'blocked'].includes(view)) {
+      throw new ValidationError('view must be matches, favorites, history, or blocked');
+    }
+    const listings = listPwaListings(database).filter((listing) => {
+      const passed = listing.evaluations.some(
+        (evaluation) => evaluation.verdict.passed,
+      );
+      if (view === 'matches') return passed;
+      if (view === 'favorites') return listing.favorite;
+      if (view === 'blocked') {
+        return listing.evaluations.length > 0 && !passed;
+      }
+      return true;
+    });
+    return { listings };
   });
+
+  app.put<{ Params: { id: string } }>(
+    '/api/listings/:id/favorite',
+    async (request, reply) => {
+      if (requireSession(auth, request, reply, true) === undefined) return;
+      if (!setFavorite(database, request.params.id, true, now())) {
+        return sendNotFound(reply);
+      }
+      return { favorite: true };
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    '/api/listings/:id/favorite',
+    async (request, reply) => {
+      if (requireSession(auth, request, reply, true) === undefined) return;
+      if (!setFavorite(database, request.params.id, false, now())) {
+        return sendNotFound(reply);
+      }
+      return reply.code(204).send();
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     '/api/listings/:id/price-history',
@@ -616,6 +660,82 @@ export async function createServer(
     setRetentionDays(database, body.retentionDays as 7 | 30 | 90 | null, now());
     return { retentionDays: getRetentionDays(database) };
   });
+
+  app.get('/api/dashboard', async (request, reply) => {
+    if (requireSession(auth, request, reply, false) === undefined) return;
+    const listings = listPwaListings(database);
+    const activeWatchlists = watchlists.list().filter((watchlist) => watchlist.enabled);
+    return {
+      activeWatchlists: activeWatchlists.length,
+      matches: listings.filter((listing) =>
+        listing.evaluations.some((evaluation) => evaluation.verdict.passed),
+      ).length,
+      favorites: listings.filter((listing) => listing.favorite).length,
+      blocked: listings.filter(
+        (listing) =>
+          listing.evaluations.length > 0 &&
+          !listing.evaluations.some((evaluation) => evaluation.verdict.passed),
+      ).length,
+      observedLast24Hours: listings.filter(
+        (listing) => listing.lastSeen >= now() - 24 * 60 * 60 * 1_000,
+      ).length,
+      recentListings: listings.slice(0, 5),
+    };
+  });
+
+  app.get('/api/diagnostics', async (request, reply) => {
+    if (requireSession(auth, request, reply, false) === undefined) return;
+    return diagnostics(
+      database,
+      options.databasePath,
+      emailSettings,
+      thumbnailCache,
+      startedAt,
+      now(),
+    );
+  });
+
+  app.get('/api/diagnostics/export', async (request, reply) => {
+    if (requireSession(auth, request, reply, false) === undefined) return;
+    const report = diagnostics(
+      database,
+      options.databasePath,
+      emailSettings,
+      thumbnailCache,
+      startedAt,
+      now(),
+    );
+    return reply
+      .header('content-disposition', `attachment; filename="marketscope-diagnostics-${new Date(now()).toISOString().slice(0, 10)}.json"`)
+      .send(report);
+  });
+
+  app.get('/api/backup', async (request, reply) => {
+    if (requireSession(auth, request, reply, false) === undefined) return;
+    const includeHistory =
+      (request.query as { includeHistory?: string }).includeHistory === 'true';
+    const date = new Date(now()).toISOString().slice(0, 10);
+    return reply
+      .header('content-disposition', `attachment; filename="marketscope-backup-${date}.json"`)
+      .send(createBackup(database, watchlists, emailSettings, now(), includeHistory));
+  });
+
+  app.post('/api/restore', async (request, reply) => {
+    if (requireSession(auth, request, reply, true) === undefined) return;
+    const backupDirectory =
+      options.backupDirectory ?? join(dirname(options.databasePath), 'backups');
+    const result = await restoreBackup(
+      database,
+      watchlists,
+      backupDirectory,
+      request.body,
+      now(),
+    );
+    return { restored: true, ...result };
+  });
+
+  const webDirectory = options.webDirectory ?? defaultWebDirectory();
+  if (webDirectory !== undefined) registerWebApp(app, webDirectory);
 
   return { app, database, notificationWorker, thumbnailCache };
 }

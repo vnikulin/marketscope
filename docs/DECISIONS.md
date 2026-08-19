@@ -119,3 +119,33 @@
 - `MAILPIT_BIN="$HOME/.local/bin/mailpit" npm run test:integration -- --reporter=verbose`
   passed all 9 test files and all 26 tests in 23.55 seconds. No tests were
   skipped. All eight M5 email cases passed against Mailpit.
+
+## 2026-08-19 M6 PWA data and navigation
+
+- The PWA uses hash routes. A saved or installed app can open any view through
+  the same cached app shell without requiring server rewrite rules for each
+  client route.
+- Listing API responses include the persisted `FilterVerdict` from
+  `watchlist_matches`. The Matches and Blocked views derive their state from
+  that verdict, and the WHY panel renders the same object.
+- Listing data always bypasses the service worker cache. The service worker
+  caches the HTML, built JavaScript, built CSS, manifest, and icons only.
+- The Fastify process serves the compiled web directory directly. It sends
+  hashed assets with immutable cache headers and sends the app shell and
+  service worker with `no-cache`.
+
+## 2026-08-19 M6 backup and restore
+
+- The PWA exports a versioned JSON backup. It includes settings without SMTP
+  secrets, watchlists, favorites, ignore rules, and optional observed history.
+- Restore validates the complete payload before changing data. It saves a
+  SQLite snapshot first, then applies the logical restore in one transaction.
+  It does not restore an SMTP password or verified email state.
+
+## 2026-08-19 M6 viewport coverage
+
+- A focused responsive test opens every primary view in iPhone portrait,
+  iPhone horizontal, Android portrait, Android horizontal, tablet, and desktop
+  projects. The state-changing workflow runs once in the desktop project so
+  backup restore and watchlist mutations cannot make viewport projects depend
+  on execution order.

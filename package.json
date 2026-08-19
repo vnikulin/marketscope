@@ -14,7 +14,8 @@
     "test:unit": "npm run test --workspaces --if-present",
     "test:integration": "vitest run --passWithNoTests tests/integration",
     "test:security": "vitest run tests/security",
-    "test:e2e": "vitest run --passWithNoTests tests/e2e",
+    "pretest:e2e": "npm run build",
+    "test:e2e": "playwright test",
     "build": "npm run build --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
