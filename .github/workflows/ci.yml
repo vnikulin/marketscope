@@ -14,7 +14,11 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: shellcheck install.sh scripts/marketscope scripts/package-release.sh
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - run: bash scripts/package-release.sh "$GITHUB_REPOSITORY" v0.0.0 "$RUNNER_TEMP/marketscope-release"
+      - run: docker build --file docker/Dockerfile --build-arg MARKETSCOPE_BUILD_VERSION=ci --build-arg MARKETSCOPE_SOURCE_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --tag marketscope:ci .

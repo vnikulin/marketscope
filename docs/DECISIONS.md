@@ -258,3 +258,37 @@
 - The seeded E2E preview has no captured Facebook image bytes, so it displays
   the MarketScope placeholder. Real listing photos appear only after the
   extension downloads and uploads an allowed JPEG thumbnail.
+
+## 2026-08-19 M7 release and update channel
+
+- A semantic version tag starts the release workflow. It tests the repository,
+  publishes AMD64 and ARM64 images to GitHub Container Registry, and attaches a
+  rendered installer plus a checksummed Linux bundle to the GitHub release.
+- The image receives both its immutable release tag and the moving `latest`
+  tag. Normal installs follow `latest`. `marketscope update v1.2.3` can pin or
+  roll forward to a specific release.
+- Updates preserve the previous image ID, a physical SQLite snapshot, the
+  Compose file, and the CLI. A failed pull restarts the old version. A failed
+  health check restores all four before restarting.
+- Maintenance commands stop the server before another process opens SQLite.
+  This preserves the one-owner rule. Logical backups omit SMTP credentials,
+  SMTP errors, session material, and extension tokens.
+- Docker's current Ubuntu instructions support 22.04 and 24.04 and use the
+  official `docker.sources` repository with `Signed-By`. MarketScope follows
+  those steps and enables the daemon with systemd. Source checked August 19,
+  2026: [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/).
+- GitHub Actions publishes to GHCR with the repository `GITHUB_TOKEN` and
+  `packages: write`. Anonymous Ubuntu installs require the resulting container
+  package to be public. Source checked August 19, 2026:
+  [publishing Docker images](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images)
+  and [GHCR permissions](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
+- Tailscale Serve proxies the loopback listener with
+  `tailscale serve --bg http://127.0.0.1:3000`. The background flag preserves
+  the Serve configuration across reboots. Source checked August 19, 2026:
+  [Tailscale Serve CLI](https://tailscale.com/docs/reference/tailscale-cli/serve).
+- The installer writes a random session signing key as a mode 0600 file. The
+  server uses it as the HMAC key for session and CSRF token hashes. Extension
+  tokens keep their existing SHA-256 storage format.
+- Playwright never reuses the stateful E2E API server. Every run starts with a
+  new temporary SQLite database, so an earlier workflow can't leave favorites,
+  deleted listings, or restored data behind for the next run.

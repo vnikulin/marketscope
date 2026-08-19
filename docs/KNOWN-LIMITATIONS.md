@@ -21,3 +21,29 @@
   MarketScope on its `*.ts.net` hostname, add it to the home screen on each
   device, launch it in standalone mode, and confirm listing views still fetch
   current API data.
+- UNVERIFIED-SANDBOX: Docker isn't available in this workspace. Build the
+  release image on a Docker host with
+  `docker build --file docker/Dockerfile --build-arg MARKETSCOPE_BUILD_VERSION=v0.1.0 --build-arg MARKETSCOPE_SOURCE_URL=https://github.com/owner/repository --tag marketscope:v0.1.0 .`,
+  then run it through `docker compose` with a temporary `.env` and confirm the
+  health check passes.
+- UNVERIFIED-SANDBOX: The GitHub release workflow and anonymous GHCR pull need
+  live GitHub verification. Push a semantic version tag with
+  `git push origin v0.1.0`, set the linked GHCR package visibility to public,
+  then verify `docker pull ghcr.io/owner/repository:v0.1.0` without signing in.
+- UNVERIFIED-SANDBOX: The one-command installer, Docker repository setup,
+  rollback trap, Tailscale HTTPS configuration, reboot persistence, rerun
+  choices, update rollback, backup, restore, and uninstall have not run on a
+  clean Ubuntu VM. On a fresh Ubuntu 24.04 VM, run
+  `curl -fsSL https://github.com/owner/repository/releases/latest/download/install.sh | sudo bash`.
+  Complete setup, ingest a fixture through the paired extension, send a real
+  test email, reboot, rerun the installer, run `sudo marketscope update`, run
+  `sudo marketscope backup --include-history`, restore that file, and run
+  `sudo marketscope uninstall`. Confirm data remains after uninstall. Repeat
+  the bootstrap with
+  `wget -qO- https://github.com/owner/repository/releases/latest/download/install.sh | sudo bash`.
+- UNVERIFIED-SANDBOX: The full Playwright command did not finish green during
+  M7 validation on Windows. The first run reported 8 passed, 15 skipped, and 1
+  failed because it reused a stateful server from an earlier run. Server reuse
+  is now disabled. A fresh focused workflow still did not return after 90
+  seconds and was interrupted. Run `npm run test:e2e` in the Ubuntu CI job and
+  preserve its complete output before marking the release test gate verified.

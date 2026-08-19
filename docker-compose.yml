@@ -1,0 +1,24 @@
+services:
+  server:
+    image: '${MARKETSCOPE_IMAGE:?MARKETSCOPE_IMAGE is required}:${MARKETSCOPE_TAG:-latest}'
+    container_name: marketscope
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      MARKETSCOPE_EXTENSION_VERSION: '${MARKETSCOPE_EXTENSION_VERSION:-0.0.0}'
+    ports:
+      - '${MARKETSCOPE_BIND_ADDRESS:-127.0.0.1}:${MARKETSCOPE_PORT:-3000}:3000'
+    volumes:
+      - /var/lib/marketscope:/data
+      - /var/backups/marketscope:/backups
+      - /var/lib/marketscope/session.key:/run/secrets/marketscope_session_key:ro
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+
+# V2 note required by the specification: if a browser container is ever added,
+# set shm_size: 2gb on that browser service. V1 has no server-side browser.

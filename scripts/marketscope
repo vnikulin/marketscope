@@ -1,0 +1,351 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly INSTALL_DIR=/opt/marketscope
+readonly DATA_DIR=/var/lib/marketscope
+readonly BACKUP_DIR=/var/backups/marketscope
+readonly COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
+readonly ENV_FILE="$INSTALL_DIR/.env"
+RELEASE_ROLLBACK_DIR=''
+
+fail() {
+  printf 'MarketScope: %s\n' "$*" >&2
+  exit 1
+}
+
+require_root() {
+  [[ ${EUID:-$(id -u)} -eq 0 ]] || fail 'run this command with sudo'
+}
+
+require_install() {
+  [[ -f "$COMPOSE_FILE" && -f "$ENV_FILE" ]] || fail 'MarketScope is not installed'
+}
+
+compose() {
+  docker compose --env-file "$ENV_FILE" --file "$COMPOSE_FILE" "$@"
+}
+
+wait_for_health() {
+  local port
+  port=$(awk -F= '$1 == "MARKETSCOPE_PORT" { print $2 }' "$ENV_FILE")
+  port=${port:-3000}
+  for _ in {1..30}; do
+    if curl --fail --silent --show-error "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+start_and_check() {
+  compose up --detach server
+  wait_for_health || {
+    compose logs --tail 100 server >&2 || true
+    fail 'server did not become healthy'
+  }
+}
+
+stop_server() {
+  compose stop --timeout 30 server
+}
+
+maintenance() {
+  compose run --rm --no-deps server \
+    node apps/server/dist/src/maintenance.js "$@"
+}
+
+timestamp() {
+  date --utc +%Y-%m-%d-%H%M%S
+}
+
+backup_command() {
+  local include_history=${1:-false}
+  local stamp filename status=0
+  stamp=$(timestamp)
+  filename="marketscope-backup-$stamp.json"
+  stop_server
+  if [[ "$include_history" == true ]]; then
+    maintenance backup "/backups/$filename" --include-history || status=$?
+  else
+    maintenance backup "/backups/$filename" || status=$?
+  fi
+  compose up --detach server
+  if ! wait_for_health; then
+    compose logs --tail 100 server >&2 || true
+    fail 'backup finished, but the server did not restart cleanly'
+  fi
+  [[ $status -eq 0 ]] || fail 'backup failed; the server was restarted'
+  printf '%s/%s\n' "$BACKUP_DIR" "$filename"
+}
+
+snapshot_database() {
+  local filename=$1
+  stop_server
+  if ! maintenance snapshot "/backups/$filename"; then
+    compose up --detach server
+    wait_for_health || true
+    fail 'database snapshot failed'
+  fi
+}
+
+restore_database_file() {
+  local snapshot=$1
+  compose down --remove-orphans
+  rm -f -- \
+    "$DATA_DIR/marketscope.db-wal" \
+    "$DATA_DIR/marketscope.db-shm" \
+    "$DATA_DIR/marketscope.db-journal"
+  install --owner=1000 --group=1000 --mode=0600 \
+    "$snapshot" "$DATA_DIR/marketscope.db"
+}
+
+status_command() {
+  local port
+  port=$(awk -F= '$1 == "MARKETSCOPE_PORT" { print $2 }' "$ENV_FILE")
+  port=${port:-3000}
+  compose ps
+  if curl --fail --silent "http://127.0.0.1:$port/health" >/dev/null; then
+    printf 'Health: ok\n'
+  else
+    printf 'Health: unavailable\n'
+    return 1
+  fi
+}
+
+diagnose_command() {
+  local image_id version
+  compose ps
+  image_id=$(compose images --quiet server 2>/dev/null | head -n 1 || true)
+  version=unknown
+  if [[ -n "$image_id" ]]; then
+    version=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$image_id" 2>/dev/null || true)
+  fi
+  printf 'Version: %s\n' "${version:-unknown}"
+  printf 'Database: '
+  if [[ -f "$DATA_DIR/marketscope.db" ]]; then
+    du -h "$DATA_DIR/marketscope.db" | cut -f1
+  else
+    printf 'not created\n'
+  fi
+  df -h "$DATA_DIR" "$BACKUP_DIR"
+  if command -v tailscale >/dev/null 2>&1; then
+    tailscale serve status || true
+  else
+    printf 'Tailscale: not installed\n'
+  fi
+  if ! wait_for_health; then
+    compose logs --tail 100 server >&2 || true
+    return 1
+  fi
+  printf 'Health: ok\n'
+}
+
+set_tag() {
+  local tag=$1 temporary
+  [[ "$tag" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]] || fail 'invalid image tag'
+  temporary=$(mktemp "$INSTALL_DIR/.env.XXXXXX")
+  awk -v tag="$tag" '
+    BEGIN { found = 0 }
+    /^MARKETSCOPE_TAG=/ { print "MARKETSCOPE_TAG=" tag; found = 1; next }
+    { print }
+    END { if (!found) print "MARKETSCOPE_TAG=" tag }
+  ' "$ENV_FILE" >"$temporary"
+  chmod 0600 "$temporary"
+  mv -- "$temporary" "$ENV_FILE"
+}
+
+refresh_release_files() {
+  local requested_tag=${1:-} release_url archive checksum stage
+  release_url=$(awk -F= '$1 == "MARKETSCOPE_RELEASE_URL" { print substr($0, index($0, "=") + 1) }' "$ENV_FILE")
+  [[ -n "$release_url" ]] || fail 'MARKETSCOPE_RELEASE_URL is missing from the install configuration'
+  if [[ -n "$requested_tag" && "$requested_tag" != latest && "$release_url" == */releases/latest/download ]]; then
+    release_url="${release_url%/releases/latest/download}/releases/download/$requested_tag"
+  fi
+  stage=$(mktemp --directory /tmp/marketscope-update.XXXXXX)
+  archive="$stage/marketscope-linux.tar.gz"
+  checksum="$archive.sha256"
+  curl --fail --location --silent --show-error "$release_url/marketscope-linux.tar.gz" --output "$archive" || {
+    rm -rf -- "$stage"
+    return 1
+  }
+  curl --fail --location --silent --show-error "$release_url/marketscope-linux.tar.gz.sha256" --output "$checksum" || {
+    rm -rf -- "$stage"
+    return 1
+  }
+  (
+    cd "$stage"
+    sha256sum --check marketscope-linux.tar.gz.sha256
+  ) || {
+    rm -rf -- "$stage"
+    return 1
+  }
+  mkdir "$stage/bundle"
+  tar --extract --gzip --file "$archive" --directory "$stage/bundle"
+  [[ -f "$stage/bundle/docker-compose.yml" && -f "$stage/bundle/marketscope" ]] || {
+    rm -rf -- "$stage"
+    fail 'release bundle is incomplete'
+  }
+  RELEASE_ROLLBACK_DIR="$stage/previous"
+  mkdir "$RELEASE_ROLLBACK_DIR"
+  cp -- "$COMPOSE_FILE" "$RELEASE_ROLLBACK_DIR/docker-compose.yml"
+  cp -- /usr/local/bin/marketscope "$RELEASE_ROLLBACK_DIR/marketscope"
+  install --mode=0644 "$stage/bundle/docker-compose.yml" "$COMPOSE_FILE"
+  install --mode=0755 "$stage/bundle/marketscope" /usr/local/bin/marketscope
+}
+
+restore_release_files() {
+  [[ -n "$RELEASE_ROLLBACK_DIR" ]] || return 0
+  install --mode=0644 "$RELEASE_ROLLBACK_DIR/docker-compose.yml" "$COMPOSE_FILE"
+  install --mode=0755 "$RELEASE_ROLLBACK_DIR/marketscope" /usr/local/bin/marketscope
+  rm -rf -- "$(dirname "$RELEASE_ROLLBACK_DIR")"
+  RELEASE_ROLLBACK_DIR=''
+}
+
+discard_release_rollback() {
+  [[ -n "$RELEASE_ROLLBACK_DIR" ]] || return 0
+  rm -rf -- "$(dirname "$RELEASE_ROLLBACK_DIR")"
+  RELEASE_ROLLBACK_DIR=''
+}
+
+update_command() {
+  local requested_tag=${1:-} old_tag old_ref old_image snapshot stamp
+  old_tag=$(awk -F= '$1 == "MARKETSCOPE_TAG" { print substr($0, index($0, "=") + 1) }' "$ENV_FILE")
+  old_tag=${old_tag:-latest}
+  old_ref=$(compose config --images | head -n 1)
+  old_image=$(docker image inspect --format '{{.Id}}' "$old_ref")
+  backup_command true >/dev/null
+  stamp=$(timestamp)
+  snapshot="marketscope-pre-update-$stamp.db"
+  snapshot_database "$snapshot"
+  if ! refresh_release_files "$requested_tag"; then
+    compose up --detach server
+    wait_for_health || true
+    fail 'release bundle download failed; the previous version was restarted'
+  fi
+  if [[ -n "$requested_tag" ]]; then
+    set_tag "$requested_tag"
+  fi
+
+  if ! compose pull server; then
+    restore_release_files
+    set_tag "$old_tag"
+    compose up --detach server
+    wait_for_health || true
+    fail 'image pull failed; the previous version was restarted'
+  fi
+
+  if compose up --detach --force-recreate server && wait_for_health; then
+    discard_release_rollback
+    printf 'MarketScope update completed successfully.\n'
+    return 0
+  fi
+
+  printf 'Update health check failed. Restoring the previous image and database.\n' >&2
+  compose down --remove-orphans || true
+  restore_release_files
+  restore_database_file "$BACKUP_DIR/$snapshot"
+  set_tag "$old_tag"
+  docker image tag "$old_image" "$(compose config --images | head -n 1)"
+  compose up --detach --force-recreate server
+  wait_for_health || {
+    compose logs --tail 100 server >&2 || true
+    fail 'rollback also failed; inspect marketscope logs'
+  }
+  fail 'update failed and was rolled back'
+}
+
+restore_command() {
+  local input=$1 stamp staged snapshot
+  [[ -f "$input" ]] || fail "backup file does not exist: $input"
+  stamp=$(timestamp)
+  staged="restore-input-$stamp.json"
+  snapshot="marketscope-pre-restore-$stamp.db"
+  install --owner=1000 --group=1000 --mode=0600 "$input" "$BACKUP_DIR/$staged"
+  snapshot_database "$snapshot"
+  if ! maintenance restore "/backups/$staged"; then
+    restore_database_file "$BACKUP_DIR/$snapshot"
+    start_and_check
+    fail 'restore failed validation or application; the original database was restored'
+  fi
+  if compose up --detach server && wait_for_health; then
+    printf 'Restore completed successfully. Safety snapshot: %s/%s\n' "$BACKUP_DIR" "$snapshot"
+    return 0
+  fi
+  restore_database_file "$BACKUP_DIR/$snapshot"
+  start_and_check
+  fail 'restored data failed the health check; the original database was restored'
+}
+
+repair_command() {
+  docker compose version >/dev/null
+  install --directory --owner=1000 --group=1000 --mode=0700 "$DATA_DIR" "$BACKUP_DIR"
+  install --directory --owner=1000 --group=1000 --mode=0700 "$DATA_DIR/thumbnails"
+  start_and_check
+  printf 'MarketScope repair completed.\n'
+}
+
+uninstall_command() {
+  local purge=${1:-false} confirmation
+  compose down --remove-orphans
+  if [[ "$purge" == true ]]; then
+    printf 'Type DELETE MARKETSCOPE DATA to permanently remove data and backups: '
+    IFS= read -r confirmation </dev/tty
+    [[ "$confirmation" == 'DELETE MARKETSCOPE DATA' ]] || fail 'confirmation did not match; data was preserved'
+    rm -rf -- "$DATA_DIR" "$BACKUP_DIR"
+    printf 'Application, data, and backups removed. This cannot be undone.\n'
+  else
+    printf 'Application removed. Data remains in %s and backups remain in %s.\n' "$DATA_DIR" "$BACKUP_DIR"
+  fi
+  rm -rf -- "$INSTALL_DIR"
+  rm -f -- /usr/local/bin/marketscope
+}
+
+usage() {
+  cat <<'EOF'
+Usage:
+  marketscope status
+  marketscope diagnose
+  marketscope logs [-f]
+  marketscope update [image-tag]
+  marketscope backup [--include-history]
+  marketscope restore <file>
+  marketscope repair
+  marketscope uninstall [--purge]
+EOF
+}
+
+main() {
+  require_root
+  require_install
+  local command=${1:-}
+  shift || true
+  case "$command" in
+    status) status_command ;;
+    diagnose) diagnose_command ;;
+    logs) compose logs "$@" server ;;
+    update)
+      [[ $# -le 1 ]] || fail 'update accepts at most one image tag'
+      update_command "${1:-}"
+      ;;
+    backup)
+      [[ $# -le 1 ]] || fail 'backup accepts only --include-history'
+      [[ $# -eq 0 || ${1:-} == '--include-history' ]] || fail 'unknown backup option'
+      backup_command "$([[ ${1:-} == '--include-history' ]] && printf true || printf false)"
+      ;;
+    restore)
+      [[ $# -eq 1 ]] || fail 'restore requires one backup file'
+      restore_command "$1"
+      ;;
+    repair) repair_command ;;
+    uninstall)
+      [[ $# -le 1 ]] || fail 'uninstall accepts only --purge'
+      [[ $# -eq 0 || ${1:-} == '--purge' ]] || fail 'unknown uninstall option'
+      uninstall_command "$([[ ${1:-} == '--purge' ]] && printf true || printf false)"
+      ;;
+    help | --help | -h | '') usage ;;
+    *) usage >&2; fail "unknown command: $command" ;;
+  esac
+}
+
+main "$@"
