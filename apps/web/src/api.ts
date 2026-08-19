@@ -9,6 +9,7 @@ export class ApiError extends Error {
 }
 
 let csrfToken = '';
+let csrfRefresh: Promise<string | undefined> | undefined;
 
 async function responseMessage(response: Response): Promise<string> {
   try {
@@ -16,6 +17,35 @@ async function responseMessage(response: Response): Promise<string> {
     return body.message ?? body.error ?? `Request failed with ${response.status}`;
   } catch {
     return `Request failed with ${response.status}`;
+  }
+}
+
+async function isCsrfRejection(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false;
+  try {
+    const body = (await response.clone().json()) as { error?: unknown };
+    return body.error === 'CSRF_REJECTED';
+  } catch {
+    return false;
+  }
+}
+
+async function refreshSessionCsrf(): Promise<string | undefined> {
+  csrfRefresh ??= (async () => {
+    const response = await fetch('/api/auth/csrf', {
+      credentials: 'include',
+    });
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { csrfToken?: unknown };
+    return typeof body.csrfToken === 'string' && body.csrfToken.length > 0
+      ? body.csrfToken
+      : undefined;
+  })();
+
+  try {
+    return await csrfRefresh;
+  } finally {
+    csrfRefresh = undefined;
   }
 }
 
@@ -29,14 +59,28 @@ export async function request<T>(
   if (options.body !== undefined && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');
   }
-  if (stateChanging && csrfToken.length > 0) {
+  const usesSessionCsrf =
+    stateChanging && csrfToken.length > 0 && !headers.has('x-csrf-token');
+  if (usesSessionCsrf) {
     headers.set('x-csrf-token', csrfToken);
   }
-  const response = await fetch(path, {
+  let response = await fetch(path, {
     ...options,
     headers,
     credentials: 'include',
   });
+  if (usesSessionCsrf && (await isCsrfRejection(response))) {
+    const refreshedToken = await refreshSessionCsrf();
+    if (refreshedToken !== undefined) {
+      csrfToken = refreshedToken;
+      headers.set('x-csrf-token', refreshedToken);
+      response = await fetch(path, {
+        ...options,
+        headers,
+        credentials: 'include',
+      });
+    }
+  }
   if (!response.ok) throw new ApiError(response.status, await responseMessage(response));
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;

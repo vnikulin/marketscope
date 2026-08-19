@@ -45,6 +45,9 @@ test('covers the complete PWA workflow', async ({
     .boundingBox();
   expect(detailsImage).not.toBeNull();
   expect(detailsTitle).not.toBeNull();
+  expect(detailsImage?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(
+    270,
+  );
   expect(detailsTitle?.y ?? 0).toBeGreaterThanOrEqual(
     (detailsImage?.y ?? 0) + (detailsImage?.height ?? 0),
   );
@@ -197,7 +200,20 @@ test('covers the complete PWA workflow', async ({
   await page
     .getByLabel('Recipients, comma separated')
     .fill('owner@example.com');
+
+  // A second dashboard load rotates the shared session token. The original
+  // form must refresh its token and save without discarding entered values.
+  const secondTab = await context.newPage();
+  await secondTab.goto('/#/settings');
+  await expect(
+    secondTab.getByRole('heading', { name: 'Settings' }),
+  ).toBeVisible();
+  await secondTab.close();
+
   await page.getByRole('button', { name: 'Save email settings' }).click();
+  await expect(
+    page.getByText('Email settings saved. Send a test email to verify them.'),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Send test email' }).click();
   await expect(page.getByText('Test email sent successfully.')).toBeVisible();
 

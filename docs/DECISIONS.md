@@ -234,3 +234,14 @@
   photo remains visible instead of cropping its edges.
 - Gmail configuration states that Google performs the MFA step. MarketScope
   accepts the resulting 16-digit app password and verifies it with a test send.
+
+## 2026-08-19 CSRF recovery and image preview sizing
+
+- An authenticated write that receives `CSRF_REJECTED` refreshes the
+  session-bound token and retries once. Another dashboard tab can rotate the
+  shared session token, so the first tab must recover without losing form data.
+  Pre-authentication setup and login requests keep their explicit tokens and
+  never enter this retry path.
+- Details uses the same fixed-height, contained thumbnail treatment as Tiles.
+  It keeps the full image visible but no longer expands the preview to the
+  width and height of the listing card.
