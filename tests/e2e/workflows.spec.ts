@@ -19,10 +19,6 @@ test('covers the complete PWA workflow', async ({
   await expect(
     page.getByRole('button', { name: 'Details', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.locator('.listing-grid-list')).toBeVisible();
-  await page.getByRole('button', { name: 'Tiles' }).click();
-  await expect(page.locator('.listing-grid-tiles')).toBeVisible();
   const ozoneCard = page
     .getByRole('heading', { name: 'Ozone Hyperlink 13m' })
     .locator('xpath=ancestor::article');
@@ -36,6 +32,44 @@ test('covers the complete PWA workflow', async ({
     .getByRole('heading', { name: 'Garmin GPSMAP 1042xsv' })
     .locator('xpath=ancestor::article');
   await expect(garminCard).toBeVisible();
+  await expect(garminCard.locator('.listing-details')).toBeVisible();
+  await expect(garminCard.locator('.listing-details')).toContainText(
+    '<script>Seller</script>',
+  );
+  await expect(garminCard.locator('.listing-details')).toContainText(
+    '1 matched of 2',
+  );
+  const detailsImage = await garminCard.locator('.listing-image').boundingBox();
+  const detailsTitle = await garminCard
+    .getByRole('heading', { name: 'Garmin GPSMAP 1042xsv' })
+    .boundingBox();
+  expect(detailsImage).not.toBeNull();
+  expect(detailsTitle).not.toBeNull();
+  expect(detailsTitle?.y ?? 0).toBeGreaterThanOrEqual(
+    (detailsImage?.y ?? 0) + (detailsImage?.height ?? 0),
+  );
+  const imageFit = await garminCard
+    .locator('.listing-image')
+    .evaluate((frame) => {
+      const image = document.createElement('img');
+      frame.append(image);
+      const fit = window.getComputedStyle(image).objectFit;
+      image.remove();
+      return fit;
+    });
+  expect(imageFit).toBe('contain');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await expect(page.locator('.listing-grid-list')).toBeVisible();
+  await expect(garminCard.locator('.listing-details')).toBeHidden();
+  await page.getByRole('button', { name: 'Tiles' }).click();
+  await expect(page.locator('.listing-grid-tiles')).toBeVisible();
+  const tileImage = await garminCard.locator('.listing-image').boundingBox();
+  const tileTitle = await garminCard
+    .getByRole('heading', { name: 'Garmin GPSMAP 1042xsv' })
+    .boundingBox();
+  expect(tileTitle?.y ?? 0).toBeGreaterThanOrEqual(
+    (tileImage?.y ?? 0) + (tileImage?.height ?? 0),
+  );
   await garminCard.getByRole('button', { name: 'WHY' }).click();
   await expect(garminCard.getByText('Filter breakdown')).toHaveCount(2);
   await expect(

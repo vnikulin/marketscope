@@ -228,6 +228,9 @@
   cached shell remains an offline fallback. Hashed assets remain cache first.
   This prevents an installed PWA from remaining on an old bundle after builds.
 - Listing views offer Details, List, and Tiles. Details keeps the full card,
-  List removes descriptions and uses smaller images, and Tiles uses the grid.
+  adds seller and observation metadata, and places the title below a full-width
+  image. List removes descriptions and uses smaller images. Tiles uses the grid.
+- Listing thumbnails use `object-fit: contain` inside fixed frames so the full
+  photo remains visible instead of cropping its edges.
 - Gmail configuration states that Google performs the MFA step. MarketScope
   accepts the resulting 16-digit app password and verifies it with a test send.
