@@ -300,3 +300,5 @@
   pull requests. Direct push CI is limited to `main`, so the same commit doesn't
   consume duplicate runners. The browser image gets `build-essential` before
   `npm ci` because Node 24 rebuilds the native `better-sqlite3` binding there.
+  The job changes the image's Ubuntu package sources from HTTP to HTTPS because
+  GitHub's hosted runner can't reach the image's port 80 archive endpoints.

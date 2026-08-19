@@ -37,6 +37,9 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
-      - run: apt-get update && apt-get install --yes --no-install-recommends build-essential
+      - run: |
+          sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources
+          apt-get update
+          apt-get install --yes --no-install-recommends build-essential
       - run: npm ci
       - run: npm run test:e2e
