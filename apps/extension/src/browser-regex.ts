@@ -7,6 +7,7 @@ interface RegexEvaluation {
 
 const MAX_INPUT_BYTES = 4_096;
 const TIMEOUT_MS = 50;
+const REGEX_WORKER_PATH = 'dist/assets/regex-worker.js';
 
 interface WorkerReply {
   matched: boolean;
@@ -22,7 +23,10 @@ function capInput(input: string): { value: string; truncated: boolean } {
   let end = MAX_INPUT_BYTES;
   while (end > 0) {
     try {
-      return { value: decoder.decode(encoded.subarray(0, end)), truncated: true };
+      return {
+        value: decoder.decode(encoded.subarray(0, end)),
+        truncated: true,
+      };
     } catch {
       end -= 1;
     }
@@ -37,7 +41,9 @@ export function evaluateBrowserRegex(
 ): Promise<RegexEvaluation> {
   const capped = capInput(input);
   return new Promise((resolve) => {
-    const worker = new Worker(new URL('./regex-worker.ts', import.meta.url), {
+    // Static manifest content scripts are classic scripts. Resolve the packaged
+    // module worker through Chrome so the content bundle never contains import.meta.
+    const worker = new Worker(chrome.runtime.getURL(REGEX_WORKER_PATH), {
       type: 'module',
     });
     let settled = false;

@@ -149,3 +149,15 @@
   projects. The state-changing workflow runs once in the desktop project so
   backup restore and watchlist mutations cannot make viewport projects depend
   on execution order.
+
+## 2026-08-19 Extension worker packaging
+
+- Chrome loads static manifest content scripts as classic scripts. The content
+  bundle therefore can't contain `import.meta`, even when it only creates a
+  module worker.
+- Vite gives the regex worker a stable packaged filename. The content script
+  resolves that file with `chrome.runtime.getURL`, and the manifest exposes only
+  that worker file to Facebook pages.
+- Every extension build parses the emitted content bundle as a classic script.
+  It also checks that the packaged worker exists and that the manifest exposes
+  only that worker file to Facebook pages.

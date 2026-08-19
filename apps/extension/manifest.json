@@ -19,5 +19,11 @@
       "matches": ["https://www.facebook.com/marketplace/*"],
       "js": ["dist/content.js"]
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["dist/assets/regex-worker.js"],
+      "matches": ["https://www.facebook.com/*"]
+    }
   ]
 }
