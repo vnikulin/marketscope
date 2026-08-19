@@ -292,8 +292,8 @@
 - Playwright never reuses the stateful E2E API server. Every run starts with a
   new temporary SQLite database, so an earlier workflow can't leave favorites,
   deleted listings, or restored data behind for the next run.
-- CI installs only Playwright's Chromium headless shell because every E2E
-  project runs headlessly without a browser channel. This avoids downloading a
-  second, unused Chromium build and its current Ubuntu runner extraction stall.
-  Feature branches run CI through pull requests. Direct push CI is limited to
-  `main`, so the same commit doesn't consume two runners.
+- CI stays on Ubuntu 22.04 while Playwright's full Chromium install can stall on
+  the Ubuntu 24.04 hosted runner. The extension E2E test requires the full
+  Chromium channel, while the PWA tests require its headless shell, so CI must
+  install both. Feature branches run CI through pull requests. Direct push CI
+  is limited to `main`, so the same commit doesn't consume two runners.
