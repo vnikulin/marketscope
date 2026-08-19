@@ -12,12 +12,3 @@
   browsed Marketplace. Distance is available only when Facebook renders it.
 - Thumbnail caching is best effort. The extension skips non-JPEG responses,
   files above 200KB, failed downloads, and failed cache uploads.
-- UNVERIFIED-SANDBOX: Windows application control blocked the official Mailpit
-  v1.30.7 executable after its published SHA-256 hash was verified. The eight
-  Mailpit tests are present but skipped when `MAILPIT_BIN` is unset. On a host
-  that permits Mailpit, run:
-
-  ```powershell
-  $env:MAILPIT_BIN = (Get-Command mailpit).Source
-  npm run test:integration -- --reporter=verbose
-  ```

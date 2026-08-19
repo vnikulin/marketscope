@@ -109,3 +109,13 @@
 - The extension service worker downloads only HTTPS JPEG responses from
   `fbcdn.net` subdomains after listing ingest succeeds. It rejects responses
   above 200KB. The server stores SHA-256-named files and applies a 2GB LRU cap.
+
+## 2026-08-19 M5 Ubuntu Mailpit checkpoint
+
+- Commit `78088c7` was tested on an x86-64 Ubuntu machine with Node.js 24.19.0,
+  npm 11.17.0, and Mailpit 1.30.7. The Mailpit archive matched its published
+  SHA-256 digest before installation.
+- `npm run lint` and `npm run typecheck` exited successfully.
+- `MAILPIT_BIN="$HOME/.local/bin/mailpit" npm run test:integration -- --reporter=verbose`
+  passed all 9 test files and all 26 tests in 23.55 seconds. No tests were
+  skipped. All eight M5 email cases passed against Mailpit.
