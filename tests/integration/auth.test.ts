@@ -105,6 +105,24 @@ describe('server authentication', () => {
     ).toEqual({ count: 0 });
   });
 
+  it('keys stored session hashes with the installed signing key', async () => {
+    const signingKey = 'test-session-signing-key-with-at-least-32-characters';
+    testServer = await makeTestServer(undefined, {
+      sessionSigningKey: signingKey,
+    });
+    const session = await createAdmin(testServer);
+    const token = session.cookie.split('=', 2)[1];
+    expect(token).toBeDefined();
+    const stored = testServer.server.database
+      .prepare('SELECT token_hash AS tokenHash FROM sessions')
+      .get() as { tokenHash: string };
+    expect(stored.tokenHash).toBe(
+      createHmac('sha256', signingKey)
+        .update(token ?? '')
+        .digest('hex'),
+    );
+  });
+
   it('rate limits login after five failures in fifteen minutes', async () => {
     testServer = await makeTestServer();
     await createAdmin(testServer);
@@ -180,3 +198,4 @@ describe('server authentication', () => {
     expect(afterRevoke.statusCode).toBe(401);
   });
 });
+import { createHmac } from 'node:crypto';

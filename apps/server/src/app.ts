@@ -69,6 +69,9 @@ export interface ServerOptions {
   thumbnailCacheMaxBytes?: number;
   backupDirectory?: string;
   webDirectory?: string;
+  sessionSigningKey?: string;
+  serverVersion?: string;
+  extensionVersion?: string;
 }
 
 export interface MarketScopeServer {
@@ -188,7 +191,7 @@ export async function createServer(
   const app = Fastify({ logger: options.logger ?? false });
   await app.register(cookie);
 
-  const auth = new AuthService(database, now);
+  const auth = new AuthService(database, now, options.sessionSigningKey);
   const watchlists = new WatchlistRepository(database, now);
   const emailSettings = new EmailSettingsRepository(database, now);
   const sendMail = options.sendMail ?? sendSmtpMail;
@@ -711,6 +714,8 @@ export async function createServer(
       thumbnailCache,
       startedAt,
       now(),
+      options.serverVersion,
+      options.extensionVersion,
     );
   });
 
@@ -723,6 +728,8 @@ export async function createServer(
       thumbnailCache,
       startedAt,
       now(),
+      options.serverVersion,
+      options.extensionVersion,
     );
     return reply
       .header(
