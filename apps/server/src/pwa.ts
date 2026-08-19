@@ -212,6 +212,8 @@ export function diagnostics(
   thumbnailCache: ThumbnailCache,
   startedAt: number,
   now: number,
+  serverVersion = '0.0.0',
+  extensionVersion = '0.0.0',
 ): Record<string, unknown> {
   const smtp = emailSettings.get();
   const lastListing = database
@@ -233,8 +235,8 @@ export function diagnostics(
   const disk =
     databasePath === ':memory:' ? undefined : statfsSync(databasePath);
   return {
-    serverVersion: '0.0.0',
-    extensionVersion: '0.0.0',
+    serverVersion,
+    extensionVersion,
     database: {
       status: 'ok',
       bytes: databaseBytes,
@@ -251,7 +253,10 @@ export function diagnostics(
     smtp: {
       configured: smtp?.verifiedAt !== undefined,
       lastSendAt: lastSend.value,
-      lastError: smtp?.lastTestError ?? null,
+      lastError:
+        smtp?.lastTestError === undefined
+          ? null
+          : redactSecrets(smtp.lastTestError, [smtp.password]),
     },
     notificationQueueDepth: count(
       database,
@@ -263,4 +268,17 @@ export function diagnostics(
     uptimeMs: Math.max(0, now - startedAt),
     generatedAt: now,
   };
+}
+
+function redactSecrets(
+  value: string,
+  secrets: Array<string | undefined>,
+): string {
+  let redacted = value;
+  for (const secret of secrets) {
+    if (secret !== undefined && secret.length > 0) {
+      redacted = redacted.replaceAll(secret, '[REDACTED]');
+    }
+  }
+  return redacted;
 }

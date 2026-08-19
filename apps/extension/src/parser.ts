@@ -4,11 +4,13 @@ import type { ParsedMarketplaceListing } from './types.js';
 
 const ITEM_LINK_SELECTOR = 'a[href*="/marketplace/item/"]';
 const ITEM_ID_PATTERN = /\/marketplace\/item\/([^/?#]+)/i;
-const PRICE_TEXT_PATTERN = /^(?:free|\$?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*k?)$/i;
+const PRICE_TEXT_PATTERN =
+  /^(?:free|\$?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*k?)$/i;
 const LOCATION_PATTERN = /\b[^,\n]{2,80},\s*[A-Z]{2}\b/;
 const DISTANCE_PATTERN = /\b(\d+(?:\.\d+)?)\s+miles?\s+away\b/i;
 const POSTED_PATTERN = /\b(?:listed|posted)\s+[^\n,]{1,40}\b/i;
-const NON_TITLE_PATTERN = /^(?:free|sponsored|ships to you|shipping available|local pickup|just listed|newly listed|pending|sold)$/i;
+const NON_TITLE_PATTERN =
+  /^(?:free|sponsored|ships to you|shipping available|local pickup|just listed|newly listed|pending|sold)$/i;
 
 function cleanText(value: string | null | undefined): string {
   return (value ?? '').replace(/\s+/g, ' ').trim();
@@ -47,7 +49,9 @@ export function findCardContainer(link: HTMLAnchorElement): HTMLElement {
 function visibleStructuralText(card: HTMLElement): string[] {
   const values = Array.from(card.querySelectorAll('[aria-hidden="true"]'))
     .map((element) => cleanText(element.textContent))
-    .filter((value, index, all) => value.length > 0 && all.indexOf(value) === index);
+    .filter(
+      (value, index, all) => value.length > 0 && all.indexOf(value) === index,
+    );
   return values;
 }
 
@@ -58,7 +62,10 @@ function priceText(card: HTMLElement): string | undefined {
   return candidates.find((value) => PRICE_TEXT_PATTERN.test(value));
 }
 
-function locationText(card: HTMLElement, ariaLabel: string): string | undefined {
+function locationText(
+  card: HTMLElement,
+  ariaLabel: string,
+): string | undefined {
   const structural = visibleStructuralText(card).find((value) =>
     LOCATION_PATTERN.test(value),
   );
@@ -93,20 +100,19 @@ function titleText(
 }
 
 function allowedImageUrl(card: HTMLElement): string | undefined {
-  const source = card.querySelector('img[src]')?.getAttribute('src');
-  if (source === null || source === undefined) {
-    return undefined;
-  }
-  try {
+  for (const image of card.querySelectorAll('img[src]')) {
+    const source = image.getAttribute('src');
+    if (source === null || !URL.canParse(source)) continue;
     const url = new URL(source);
     const hostname = url.hostname.toLowerCase();
-    return url.protocol === 'https:' &&
+    if (
+      url.protocol === 'https:' &&
       (hostname === 'fbcdn.net' || hostname.endsWith('.fbcdn.net'))
-      ? url.toString()
-      : undefined;
-  } catch {
-    return undefined;
+    ) {
+      return url.toString();
+    }
   }
+  return undefined;
 }
 
 export function parseListingLink(
@@ -154,5 +160,7 @@ export function parseListingLink(
 }
 
 export function listingLinks(root: ParentNode): HTMLAnchorElement[] {
-  return Array.from(root.querySelectorAll<HTMLAnchorElement>(ITEM_LINK_SELECTOR));
+  return Array.from(
+    root.querySelectorAll<HTMLAnchorElement>(ITEM_LINK_SELECTOR),
+  );
 }

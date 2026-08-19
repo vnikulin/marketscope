@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
+import { EmailSettingsRepository } from '../../apps/server/src/email.js';
+
 import {
   adminHeaders,
   closeTestServer,
@@ -145,6 +147,18 @@ describe('PWA API', () => {
       },
     });
     expect(email.statusCode).toBe(200);
+    new EmailSettingsRepository(
+      testServer.server.database,
+      () => testServer.clock.now,
+    ).markTestFailed('SMTP rejected smtp-secret-value during authentication');
+    const diagnosticsExport = await testServer.server.app.inject({
+      method: 'GET',
+      url: '/api/diagnostics/export',
+      headers: adminHeaders(session),
+    });
+    expect(diagnosticsExport.statusCode).toBe(200);
+    expect(diagnosticsExport.body).not.toContain('smtp-secret-value');
+    expect(diagnosticsExport.body).toContain('[REDACTED]');
     const backupResponse = await testServer.server.app.inject({
       method: 'GET',
       url: '/api/backup?includeHistory=false',

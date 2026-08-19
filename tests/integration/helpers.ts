@@ -56,7 +56,7 @@ export function responseCookie(response: LightMyRequestResponse): string {
 
 export async function makeTestServer(
   initialNow = Date.UTC(2026, 7, 18, 16, 0, 0),
-  options: { sendMail?: SendMail } = {},
+  options: { sendMail?: SendMail; sessionSigningKey?: string } = {},
 ): Promise<TestServer> {
   const directory = mkdtempSync(join(tmpdir(), 'marketscope-integration-'));
   const databasePath = join(directory, 'marketscope.db');

@@ -2,11 +2,13 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,7 +16,35 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
+      - run: shellcheck install.sh scripts/marketscope scripts/package-release.sh
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test
+      - run: npm run test:unit
+      - run: npm run test:integration
+      - run: npm run test:security
       - run: npm run build
+      - name: Verify release bundle
+        run: |
+          bash scripts/package-release.sh "$GITHUB_REPOSITORY" v0.0.0 "$RUNNER_TEMP/marketscope-release"
+          grep --fixed-strings --quiet "readonly DEFAULT_IMAGE_TAG='v0.0.0'" "$RUNNER_TEMP/marketscope-release/install.sh"
+          grep --fixed-strings --quiet "/releases/download/v0.0.0'" "$RUNNER_TEMP/marketscope-release/install.sh"
+      - run: docker build --file docker/Dockerfile --build-arg MARKETSCOPE_BUILD_VERSION=ci --build-arg MARKETSCOPE_SOURCE_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --tag marketscope:ci .
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - run: >-
+          docker run --rm --ipc=host
+          --user "$(id -u):$(id -g)"
+          --env HOME=/tmp
+          --volume "$GITHUB_WORKSPACE:/work"
+          --workdir /work
+          mcr.microsoft.com/playwright:v1.62.1-noble
+          npm run test:e2e

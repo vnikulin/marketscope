@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 
 import argon2 from 'argon2';
 import type Database from 'better-sqlite3';
@@ -99,16 +99,27 @@ export class LoginRateLimiter {
 export class AuthService {
   readonly #database: Database.Database;
   readonly #now: () => number;
+  readonly #sessionSigningKey: string | undefined;
   readonly #preAuthCsrf = new Map<string, number>();
   readonly loginRateLimiter: LoginRateLimiter;
 
   public constructor(
     database: Database.Database,
     now: () => number = Date.now,
+    sessionSigningKey?: string,
   ) {
     this.#database = database;
     this.#now = now;
+    this.#sessionSigningKey = sessionSigningKey;
     this.loginRateLimiter = new LoginRateLimiter(now);
+  }
+
+  #hashSessionToken(token: string): string {
+    return this.#sessionSigningKey === undefined
+      ? hashToken(token)
+      : createHmac('sha256', this.#sessionSigningKey)
+          .update(token)
+          .digest('hex');
   }
 
   public hasAdmin(): boolean {
@@ -119,7 +130,7 @@ export class AuthService {
   public issuePreAuthCsrf(): string {
     const token = createToken();
     this.#preAuthCsrf.set(
-      hashToken(token),
+      this.#hashSessionToken(token),
       this.#now() + PRE_AUTH_CSRF_LIFETIME_MS,
     );
     return token;
@@ -129,7 +140,7 @@ export class AuthService {
     if (token === undefined) {
       return false;
     }
-    const hash = hashToken(token);
+    const hash = this.#hashSessionToken(token);
     const expiresAt = this.#preAuthCsrf.get(hash);
     this.#preAuthCsrf.delete(hash);
     return expiresAt !== undefined && expiresAt > this.#now();
@@ -195,9 +206,9 @@ export class AuthService {
            VALUES (?, ?, ?, ?, ?)`,
         )
         .run(
-          hashToken(token),
+          this.#hashSessionToken(token),
           userId,
-          hashToken(csrfToken),
+          this.#hashSessionToken(csrfToken),
           timestamp,
           expiresAt,
         );
@@ -223,14 +234,14 @@ export class AuthService {
          FROM sessions
          WHERE token_hash = ?`,
       )
-      .get(hashToken(token)) as SessionRow | undefined;
+      .get(this.#hashSessionToken(token)) as SessionRow | undefined;
     if (row === undefined) {
       return undefined;
     }
     if (row.expires_at <= this.#now()) {
       this.#database
         .prepare('DELETE FROM sessions WHERE token_hash = ?')
-        .run(hashToken(token));
+        .run(this.#hashSessionToken(token));
       return undefined;
     }
     return { userId: row.user_id, csrfHash: row.csrf_token_hash };
@@ -241,14 +252,17 @@ export class AuthService {
     session: AuthenticatedSession,
   ): boolean {
     const token = request.headers['x-csrf-token'];
-    return typeof token === 'string' && hashToken(token) === session.csrfHash;
+    return (
+      typeof token === 'string' &&
+      this.#hashSessionToken(token) === session.csrfHash
+    );
   }
 
   public rotateCsrf(session: AuthenticatedSession): string {
     const csrfToken = createToken();
     this.#database
       .prepare('UPDATE sessions SET csrf_token_hash = ? WHERE user_id = ?')
-      .run(hashToken(csrfToken), session.userId);
+      .run(this.#hashSessionToken(csrfToken), session.userId);
     return csrfToken;
   }
 
@@ -257,7 +271,7 @@ export class AuthService {
     if (token !== undefined) {
       this.#database
         .prepare('DELETE FROM sessions WHERE token_hash = ?')
-        .run(hashToken(token));
+        .run(this.#hashSessionToken(token));
     }
     reply.clearCookie(SESSION_COOKIE, { path: '/' });
   }

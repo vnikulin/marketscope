@@ -6,7 +6,11 @@ import type Database from 'better-sqlite3';
 import type { EmailSettingsRepository } from './email.js';
 import { getRetentionDays } from './retention.js';
 import type { IngestListing } from './types.js';
-import { parseIngestListing, parseWatchlistInput, ValidationError } from './validation.js';
+import {
+  parseIngestListing,
+  parseWatchlistInput,
+  ValidationError,
+} from './validation.js';
 import type { WatchlistRepository } from './watchlists.js';
 
 interface BackupListing extends IngestListing {
@@ -25,10 +29,19 @@ interface MarketScopeBackup {
   };
   watchlists: unknown[];
   favorites: string[];
-  ignoreRules: Array<{ id: string; listingId?: string; rule: unknown; createdAt: number }>;
+  ignoreRules: Array<{
+    id: string;
+    listingId?: string;
+    rule: unknown;
+    createdAt: number;
+  }>;
   history?: {
     listings: BackupListing[];
-    priceHistory: Array<{ listingId: string; price?: number; observedAt: number }>;
+    priceHistory: Array<{
+      listingId: string;
+      price?: number;
+      observedAt: number;
+    }>;
   };
 }
 
@@ -80,9 +93,12 @@ export function createBackup(
   if (safeEmail !== undefined) {
     delete safeEmail.password;
     delete safeEmail.verifiedAt;
+    delete safeEmail.lastTestError;
   }
   const favorites = database
-    .prepare('SELECT listing_id AS listingId FROM favorites ORDER BY created_at, listing_id')
+    .prepare(
+      'SELECT listing_id AS listingId FROM favorites ORDER BY created_at, listing_id',
+    )
     .all() as Array<{ listingId: string }>;
   const ignoreRules = database
     .prepare(
@@ -90,40 +106,41 @@ export function createBackup(
          created_at AS createdAt FROM ignore_rules ORDER BY created_at, id`,
     )
     .all() as Array<{
-      id: string;
-      listingId: string | null;
-      ruleJson: string;
-      createdAt: number;
-    }>;
+    id: string;
+    listingId: string | null;
+    ruleJson: string;
+    createdAt: number;
+  }>;
   const favoriteIds = new Set(favorites.map((favorite) => favorite.listingId));
   const selectedListings = listingRows(database).filter(
     (listing) => includeHistory || favoriteIds.has(listing.id),
   );
   const selectedIds = new Set(selectedListings.map((listing) => listing.id));
-  const history = selectedListings.length > 0
-    ? {
-        listings: selectedListings,
-        priceHistory: (
-          database
-            .prepare(
-              `SELECT listing_id AS listingId, price_cents AS price,
+  const history =
+    selectedListings.length > 0
+      ? {
+          listings: selectedListings,
+          priceHistory: (
+            database
+              .prepare(
+                `SELECT listing_id AS listingId, price_cents AS price,
                  observed_at AS observedAt
                FROM listing_price_history ORDER BY observed_at, id`,
-            )
-            .all() as Array<{
+              )
+              .all() as Array<{
               listingId: string;
               price: number | null;
               observedAt: number;
             }>
-        )
-          .filter((entry) => selectedIds.has(entry.listingId))
-          .map((entry) => ({
-            listingId: entry.listingId,
-            ...(entry.price === null ? {} : { price: entry.price }),
-            observedAt: entry.observedAt,
-          })),
-      }
-    : undefined;
+          )
+            .filter((entry) => selectedIds.has(entry.listingId))
+            .map((entry) => ({
+              listingId: entry.listingId,
+              ...(entry.price === null ? {} : { price: entry.price }),
+              observedAt: entry.observedAt,
+            })),
+        }
+      : undefined;
   return {
     version: 1,
     exportedAt: now,
@@ -172,7 +189,11 @@ function validateBackup(value: unknown): MarketScopeBackup {
   if (![7, 30, 90, null].includes(retentionDays as 7 | 30 | 90 | null)) {
     throw new ValidationError('backup retentionDays is invalid');
   }
-  if (!Array.isArray(body.watchlists) || !Array.isArray(body.favorites) || !Array.isArray(body.ignoreRules)) {
+  if (
+    !Array.isArray(body.watchlists) ||
+    !Array.isArray(body.favorites) ||
+    !Array.isArray(body.ignoreRules)
+  ) {
     throw new ValidationError('backup collections are invalid');
   }
   const watchlists = body.watchlists.map(parseWatchlistInput);
@@ -181,7 +202,10 @@ function validateBackup(value: unknown): MarketScopeBackup {
   }
   const ignoreRules = body.ignoreRules.map((item) => {
     const rule = record(item, 'ignore rule');
-    if (typeof rule.id !== 'string' || (rule.listingId !== undefined && typeof rule.listingId !== 'string')) {
+    if (
+      typeof rule.id !== 'string' ||
+      (rule.listingId !== undefined && typeof rule.listingId !== 'string')
+    ) {
       throw new ValidationError('backup ignore rule identifier is invalid');
     }
     return {
@@ -194,7 +218,10 @@ function validateBackup(value: unknown): MarketScopeBackup {
   let history: MarketScopeBackup['history'];
   if (body.history !== undefined) {
     const source = record(body.history, 'backup history');
-    if (!Array.isArray(source.listings) || !Array.isArray(source.priceHistory)) {
+    if (
+      !Array.isArray(source.listings) ||
+      !Array.isArray(source.priceHistory)
+    ) {
       throw new ValidationError('backup history collections are invalid');
     }
     const listings = source.listings.map((item) => {
@@ -216,9 +243,14 @@ function validateBackup(value: unknown): MarketScopeBackup {
     const priceHistory = source.priceHistory.map((item) => {
       const raw = record(item, 'price history');
       if (typeof raw.listingId !== 'string' || !ids.has(raw.listingId)) {
-        throw new ValidationError('price history references an unknown listing');
+        throw new ValidationError(
+          'price history references an unknown listing',
+        );
       }
-      const price = raw.price === undefined ? undefined : integer(raw.price, 'price history price');
+      const price =
+        raw.price === undefined
+          ? undefined
+          : integer(raw.price, 'price history price');
       return {
         listingId: raw.listingId,
         ...(price === undefined ? {} : { price }),
@@ -227,7 +259,10 @@ function validateBackup(value: unknown): MarketScopeBackup {
     });
     history = { listings, priceHistory };
   }
-  const email = settings.email === undefined ? undefined : record(settings.email, 'email settings');
+  const email =
+    settings.email === undefined
+      ? undefined
+      : record(settings.email, 'email settings');
   if (email?.password !== undefined) {
     throw new ValidationError('backup must not contain an SMTP password');
   }
@@ -251,7 +286,12 @@ export async function restoreBackup(
   backupDirectory: string,
   value: unknown,
   now: number,
-): Promise<{ watchlists: number; listings: number; favorites: number; snapshot: string }> {
+): Promise<{
+  watchlists: number;
+  listings: number;
+  favorites: number;
+  snapshot: string;
+}> {
   const backup = validateBackup(value);
   mkdirSync(backupDirectory, { recursive: true, mode: 0o700 });
   const snapshot = `pre-restore-${now}.db`;
@@ -276,10 +316,13 @@ export async function restoreBackup(
       .run(JSON.stringify(backup.settings.retentionDays), now);
     if (backup.settings.email !== undefined) {
       database
-        .prepare('INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)')
+        .prepare(
+          'INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)',
+        )
         .run('smtp', JSON.stringify(backup.settings.email), now);
     }
-    for (const input of backup.watchlists) watchlists.create(parseWatchlistInput(input));
+    for (const input of backup.watchlists)
+      watchlists.create(parseWatchlistInput(input));
     const insertListing = database.prepare(
       `INSERT INTO listings (
         id, source, listing_key, source_listing_id, canonical_url, title,
@@ -290,17 +333,31 @@ export async function restoreBackup(
       ) VALUES (?, 'facebook', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     for (const listing of listings) {
-      const key = listing.sourceListingId ? `id:${listing.sourceListingId}` : `url:${listing.url}`;
+      const key = listing.sourceListingId
+        ? `id:${listing.sourceListingId}`
+        : `url:${listing.url}`;
       insertListing.run(
-        listing.id, key, listing.sourceListingId ?? null, listing.url,
-        listing.title, listing.description ?? null, listing.price ?? null,
-        listing.priceText ?? null, listing.location ?? null,
-        listing.distanceMiles ?? null, listing.imageUrl ?? null,
-        listing.imageHash ?? null, listing.sellerName ?? null,
-        Number(listing.sponsored), Number(listing.shipping),
+        listing.id,
+        key,
+        listing.sourceListingId ?? null,
+        listing.url,
+        listing.title,
+        listing.description ?? null,
+        listing.price ?? null,
+        listing.priceText ?? null,
+        listing.location ?? null,
+        listing.distanceMiles ?? null,
+        listing.imageUrl ?? null,
+        listing.imageHash ?? null,
+        listing.sellerName ?? null,
+        Number(listing.sponsored),
+        Number(listing.shipping),
         listing.localPickup === undefined ? null : Number(listing.localPickup),
-        listing.postedAtText ?? null, listing.postedAtEstimate ?? null,
-        listing.rawText, listing.firstSeen, listing.lastSeen,
+        listing.postedAtText ?? null,
+        listing.postedAtEstimate ?? null,
+        listing.rawText,
+        listing.firstSeen,
+        listing.lastSeen,
         listing.lastAlerted ?? null,
       );
     }

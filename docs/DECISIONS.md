@@ -234,3 +234,73 @@
   photo remains visible instead of cropping its edges.
 - Gmail configuration states that Google performs the MFA step. MarketScope
   accepts the resulting 16-digit app password and verifies it with a test send.
+
+## 2026-08-19 CSRF recovery and image preview sizing
+
+- An authenticated write that receives `CSRF_REJECTED` refreshes the
+  session-bound token and retries once. Another dashboard tab can rotate the
+  shared session token, so the first tab must recover without losing form data.
+  Pre-authentication setup and login requests keep their explicit tokens and
+  never enter this retry path.
+- Details uses the same fixed-height, contained thumbnail treatment as Tiles.
+  It keeps the full image visible but no longer expands the preview to the
+  width and height of the listing card.
+
+## 2026-08-19 Compact tiles and thumbnail selection
+
+- Tiles use smaller cards than Details at every tested viewport. Phone
+  portrait uses two columns with 130-pixel thumbnail frames. Details keeps its
+  existing single-column size and metadata. This supersedes the earlier
+  statement that Details and Tiles use the same thumbnail treatment.
+- A Marketplace card can contain an unrelated image before its listing photo.
+  The parser checks each image candidate and selects the first HTTPS
+  `fbcdn.net` source. It never accepts another host.
+- The seeded E2E preview has no captured Facebook image bytes, so it displays
+  the MarketScope placeholder. Real listing photos appear only after the
+  extension downloads and uploads an allowed JPEG thumbnail.
+
+## 2026-08-19 M7 release and update channel
+
+- A semantic version tag starts the release workflow. It tests the repository,
+  publishes AMD64 and ARM64 images to GitHub Container Registry, and attaches a
+  rendered installer plus a checksummed Linux bundle to the GitHub release.
+- Stable images receive both an immutable release tag and the moving `latest`
+  tag. Prerelease images receive only their immutable tag, and GitHub marks
+  their releases as prereleases.
+- The installer pins the image tag that produced it. `marketscope update`
+  moves an install to the stable `latest` channel. `marketscope update v1.2.3`
+  pins or rolls forward to a specific release.
+- Updates preserve the previous image ID, a physical SQLite snapshot, the
+  Compose file, and the CLI. A failed pull restarts the old version. A failed
+  health check restores all four before restarting.
+- Maintenance commands stop the server before another process opens SQLite.
+  This preserves the one-owner rule. Logical backups omit SMTP credentials,
+  SMTP errors, session material, and extension tokens.
+- Docker's current Ubuntu instructions support 22.04 and 24.04 and use the
+  official `docker.sources` repository with `Signed-By`. MarketScope follows
+  those steps and enables the daemon with systemd. Source checked August 19,
+  2026: [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/).
+- GitHub Actions publishes to GHCR with the repository `GITHUB_TOKEN` and
+  `packages: write`. Anonymous Ubuntu installs require the resulting container
+  package to be public. Source checked August 19, 2026:
+  [publishing Docker images](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images)
+  and [GHCR permissions](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
+- Tailscale Serve proxies the loopback listener with
+  `tailscale serve --bg http://127.0.0.1:3000`. The background flag preserves
+  the Serve configuration across reboots. Source checked August 19, 2026:
+  [Tailscale Serve CLI](https://tailscale.com/docs/reference/tailscale-cli/serve).
+- The installer writes a random session signing key as a mode 0600 file. The
+  server uses it as the HMAC key for session and CSRF token hashes. Extension
+  tokens keep their existing SHA-256 storage format.
+- Playwright never reuses the stateful E2E API server. Every run starts with a
+  new temporary SQLite database, so an earlier workflow can't leave favorites,
+  deleted listings, or restored data behind for the next run.
+- CI runs E2E in Microsoft's Playwright image pinned to the repository's exact
+  Playwright version. Hosted-runner browser installation can stall after the
+  full Chromium download, and the extension test requires that full Chromium
+  channel. The native runner completes `npm ci`, including the Node 24
+  `better-sqlite3` build, before mounting the workspace into the browser image.
+  Static checks, non-browser tests, release packaging, and the MarketScope
+  Docker build stay in a separate native runner job. Feature branches run CI
+  through pull requests. Direct push CI is limited to `main`, so the same commit
+  doesn't consume duplicate runners.
