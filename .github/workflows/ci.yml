@@ -31,12 +31,12 @@ jobs:
     timeout-minutes: 20
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
-      options: --user 1001
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: npm
+      - run: apt-get update && apt-get install --yes --no-install-recommends build-essential
       - run: npm ci
       - run: npm run test:e2e

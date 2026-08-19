@@ -298,4 +298,5 @@
   channel. Static checks, non-browser tests, release packaging, and the Docker
   build stay in a separate native runner job. Feature branches run CI through
   pull requests. Direct push CI is limited to `main`, so the same commit doesn't
-  consume duplicate runners.
+  consume duplicate runners. The browser image gets `build-essential` before
+  `npm ci` because Node 24 rebuilds the native `better-sqlite3` binding there.
