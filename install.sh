@@ -7,6 +7,7 @@ readonly LOG_DIR=/var/log/marketscope
 readonly BACKUP_DIR=/var/backups/marketscope
 readonly CLI_PATH=/usr/local/bin/marketscope
 readonly DEFAULT_IMAGE='__MARKETSCOPE_IMAGE__'
+readonly DEFAULT_IMAGE_TAG='__MARKETSCOPE_IMAGE_TAG__'
 readonly DEFAULT_RELEASE_URL='__MARKETSCOPE_RELEASE_URL__'
 readonly DEFAULT_EXTENSION_VERSION='__MARKETSCOPE_VERSION__'
 
@@ -188,9 +189,11 @@ preserve_previous_files() {
 
 write_environment() {
   local image=${MARKETSCOPE_IMAGE:-$DEFAULT_IMAGE}
+  local image_tag=${MARKETSCOPE_TAG:-$DEFAULT_IMAGE_TAG}
   local release_url=${MARKETSCOPE_RELEASE_URL:-$DEFAULT_RELEASE_URL}
   local extension_version=${MARKETSCOPE_EXTENSION_VERSION:-$DEFAULT_EXTENSION_VERSION}
   [[ "$image" != *'__MARKETSCOPE_'* ]] || fail 'release image was not rendered into install.sh'
+  [[ "$image_tag" != *'__MARKETSCOPE_'* ]] || fail 'release image tag was not rendered into install.sh'
   [[ "$release_url" != *'__MARKETSCOPE_'* ]] || fail 'release URL was not rendered into install.sh'
   if [[ "$EXISTING_INSTALL" == true && ${RECONFIGURE:-false} != true ]]; then
     return
@@ -205,7 +208,7 @@ write_environment() {
   [[ "$port" =~ ^[0-9]+$ && $port -ge 1 && $port -le 65535 ]] || fail 'port must be between 1 and 65535'
   cat >"$INSTALL_DIR/.env" <<EOF
 MARKETSCOPE_IMAGE=$image
-MARKETSCOPE_TAG=latest
+MARKETSCOPE_TAG=$image_tag
 MARKETSCOPE_BIND_ADDRESS=$bind_address
 MARKETSCOPE_PORT=$port
 MARKETSCOPE_EXTENSION_VERSION=$extension_version

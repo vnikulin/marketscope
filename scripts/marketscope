@@ -156,11 +156,20 @@ set_tag() {
 }
 
 refresh_release_files() {
-  local requested_tag=${1:-} release_url archive checksum stage
+  local requested_tag=${1:-} release_url repository_url archive checksum stage
   release_url=$(awk -F= '$1 == "MARKETSCOPE_RELEASE_URL" { print substr($0, index($0, "=") + 1) }' "$ENV_FILE")
   [[ -n "$release_url" ]] || fail 'MARKETSCOPE_RELEASE_URL is missing from the install configuration'
-  if [[ -n "$requested_tag" && "$requested_tag" != latest && "$release_url" == */releases/latest/download ]]; then
-    release_url="${release_url%/releases/latest/download}/releases/download/$requested_tag"
+  if [[ "$release_url" == */releases/latest/download ]]; then
+    repository_url=${release_url%/releases/latest/download}
+  elif [[ "$release_url" == */releases/download/* ]]; then
+    repository_url=${release_url%%/releases/download/*}
+  fi
+  if [[ -n "${repository_url:-}" ]]; then
+    if [[ -n "$requested_tag" && "$requested_tag" != latest ]]; then
+      release_url="$repository_url/releases/download/$requested_tag"
+    else
+      release_url="$repository_url/releases/latest/download"
+    fi
   fi
   stage=$(mktemp --directory /tmp/marketscope-update.XXXXXX)
   archive="$stage/marketscope-linux.tar.gz"
@@ -223,9 +232,7 @@ update_command() {
     wait_for_health || true
     fail 'release bundle download failed; the previous version was restarted'
   fi
-  if [[ -n "$requested_tag" ]]; then
-    set_tag "$requested_tag"
-  fi
+  set_tag "${requested_tag:-latest}"
 
   if ! compose pull server; then
     restore_release_files

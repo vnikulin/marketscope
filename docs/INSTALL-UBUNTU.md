@@ -8,6 +8,14 @@ Publish a semantic version release first. The release workflow builds the
 container and installer assets. The linked GHCR container package must be
 public so the Ubuntu server can pull it without storing a GitHub credential.
 
+For a clean-machine release test, publish a prerelease such as `v0.1.0-rc.1`.
+Prereleases keep their own container tag and don't replace the stable `latest`
+tag. Install that exact prerelease instead of the latest stable release:
+
+```bash
+curl -fsSL https://github.com/<owner>/<repository>/releases/download/v0.1.0-rc.1/install.sh | sudo bash
+```
+
 Install the latest release with `curl`:
 
 ```bash

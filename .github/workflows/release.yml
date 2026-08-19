@@ -38,6 +38,18 @@ jobs:
         id: image
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >>"$GITHUB_OUTPUT"
 
+      - name: Select image tags
+        id: tags
+        run: |
+          {
+            echo 'value<<EOF'
+            echo "${{ steps.image.outputs.name }}:$GITHUB_REF_NAME"
+            if [[ "$GITHUB_REF_NAME" != *-* ]]; then
+              echo "${{ steps.image.outputs.name }}:latest"
+            fi
+            echo 'EOF'
+          } >>"$GITHUB_OUTPUT"
+
       - name: Build and publish container
         uses: docker/build-push-action@v6
         with:
@@ -45,9 +57,7 @@ jobs:
           file: docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ steps.image.outputs.name }}:${{ github.ref_name }}
-            ${{ steps.image.outputs.name }}:latest
+          tags: ${{ steps.tags.outputs.value }}
           build-args: |
             MARKETSCOPE_BUILD_VERSION=${{ github.ref_name }}
             MARKETSCOPE_SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
@@ -65,7 +75,11 @@ jobs:
               "$RUNNER_TEMP/release/marketscope-linux.tar.gz" \
               "$RUNNER_TEMP/release/marketscope-linux.tar.gz.sha256"
           else
-            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
+            release_options=(--verify-tag --generate-notes)
+            if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+              release_options+=(--prerelease)
+            fi
+            gh release create "$GITHUB_REF_NAME" "${release_options[@]}" \
               "$RUNNER_TEMP/release/install.sh" \
               "$RUNNER_TEMP/release/marketscope-linux.tar.gz" \
               "$RUNNER_TEMP/release/marketscope-linux.tar.gz.sha256"

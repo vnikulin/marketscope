@@ -16,7 +16,7 @@ output_directory=${3:?Output directory is required}
 
 repository_lower=$(printf '%s' "$repository" | tr '[:upper:]' '[:lower:]')
 image="ghcr.io/$repository_lower"
-release_url="https://github.com/$repository/releases/latest/download"
+release_url="https://github.com/$repository/releases/download/$version"
 stage=$(mktemp --directory)
 trap 'rm -rf -- "$stage"' EXIT
 
@@ -32,6 +32,7 @@ tar --create --gzip --file "$output_directory/marketscope-linux.tar.gz" \
 
 sed \
   -e "s|__MARKETSCOPE_IMAGE__|$image|g" \
+  -e "s|__MARKETSCOPE_IMAGE_TAG__|$version|g" \
   -e "s|__MARKETSCOPE_RELEASE_URL__|$release_url|g" \
   -e "s|__MARKETSCOPE_VERSION__|$version|g" \
   install.sh >"$output_directory/install.sh"

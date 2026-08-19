@@ -23,7 +23,11 @@ jobs:
       - run: npm run test:integration
       - run: npm run test:security
       - run: npm run build
-      - run: bash scripts/package-release.sh "$GITHUB_REPOSITORY" v0.0.0 "$RUNNER_TEMP/marketscope-release"
+      - name: Verify release bundle
+        run: |
+          bash scripts/package-release.sh "$GITHUB_REPOSITORY" v0.0.0 "$RUNNER_TEMP/marketscope-release"
+          grep --fixed-strings --quiet "readonly DEFAULT_IMAGE_TAG='v0.0.0'" "$RUNNER_TEMP/marketscope-release/install.sh"
+          grep --fixed-strings --quiet "/releases/download/v0.0.0'" "$RUNNER_TEMP/marketscope-release/install.sh"
       - run: docker build --file docker/Dockerfile --build-arg MARKETSCOPE_BUILD_VERSION=ci --build-arg MARKETSCOPE_SOURCE_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --tag marketscope:ci .
 
   e2e:

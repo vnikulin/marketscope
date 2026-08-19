@@ -264,9 +264,12 @@
 - A semantic version tag starts the release workflow. It tests the repository,
   publishes AMD64 and ARM64 images to GitHub Container Registry, and attaches a
   rendered installer plus a checksummed Linux bundle to the GitHub release.
-- The image receives both its immutable release tag and the moving `latest`
-  tag. Normal installs follow `latest`. `marketscope update v1.2.3` can pin or
-  roll forward to a specific release.
+- Stable images receive both an immutable release tag and the moving `latest`
+  tag. Prerelease images receive only their immutable tag, and GitHub marks
+  their releases as prereleases.
+- The installer pins the image tag that produced it. `marketscope update`
+  moves an install to the stable `latest` channel. `marketscope update v1.2.3`
+  pins or rolls forward to a specific release.
 - Updates preserve the previous image ID, a physical SQLite snapshot, the
   Compose file, and the CLI. A failed pull restarts the old version. A failed
   health check restores all four before restarting.
