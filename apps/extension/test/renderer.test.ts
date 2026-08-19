@@ -33,13 +33,19 @@ describe('extension rendering', () => {
     expect(root?.textContent).toContain(`Excluded: ${malicious}: FAIL`);
     expect(root?.textContent).toContain('FINAL: BLOCKED');
     expect(root?.querySelector('img')).toBeNull();
-    expect(root?.style.position).toBe('absolute');
+    expect(card?.getAttribute('data-marketscope-card-state')).toBe('hidden');
     expect((card as HTMLElement).style.display).toBe('');
+    expect(
+      dom.window.document.querySelector('[data-marketscope-card-styles]')
+        ?.textContent,
+    ).not.toContain('display: none');
   });
 
   it('supports DIM, show-blocked, and a single parser warning', () => {
     const dom = new JSDOM('<body><div id="card"></div></body>');
-    const card = dom.window.document.querySelector<HTMLElement>('#card') as HTMLElement;
+    const card = dom.window.document.querySelector<HTMLElement>(
+      '#card',
+    ) as HTMLElement;
     const evaluations = [
       {
         watchlistId: 'one',
@@ -47,14 +53,17 @@ describe('extension rendering', () => {
         verdict: { passed: false, checks: [], relevance: 0, failedOn: 'Price' },
       },
     ];
-    renderEvaluation(card, evaluations, { displayMode: 'DIM', showBlocked: false });
-    expect(card.style.opacity).toBe('0.35');
+    renderEvaluation(card, evaluations, {
+      displayMode: 'DIM',
+      showBlocked: false,
+    });
+    expect(card.getAttribute('data-marketscope-card-state')).toBe('dim');
     const shown = renderEvaluation(card, evaluations, {
       displayMode: 'HIDE',
       showBlocked: true,
     });
     expect(shown?.style.position).toBe('relative');
-    expect(card.style.opacity).toBe('');
+    expect(card.hasAttribute('data-marketscope-card-state')).toBe(false);
 
     showParserWarning(dom.window.document);
     showParserWarning(dom.window.document);

@@ -161,3 +161,20 @@
 - Every extension build parses the emitted content bundle as a classic script.
   It also checks that the packaged worker exists and that the manifest exposes
   only that worker file to Facebook pages.
+
+## 2026-08-19 Blocked cards and dashboard focus
+
+- MarketScope can't stop Facebook from loading a listing. That would violate
+  the zero-request observer boundary. Hide mode uses CSS visibility and a fixed
+  two-pixel block size instead. It never uses `display: none`, which can break
+  Facebook's virtualized feed.
+- The Dashboard shows recent listings that passed at least one watchlist.
+  History still records every observed listing, and Blocked keeps rejected
+  listings available with their WHY details.
+- A watchlist using ANY term mode requires at least one required term. ALL
+  continues to require every term.
+- The Dashboard links to the authenticated new-watchlist editor. New watchlists
+  default to ANY term mode and keep the existing safe rule defaults.
+- MarketScope does not submit searches to Facebook. Each watchlist exposes its
+  saved opaque URL as an Open search link, and only the user's click opens it.
+  The extension token remains unable to create or edit watchlists.

@@ -15,14 +15,14 @@ export default defineConfig({
     {
       command: 'node tests/e2e/server.mjs',
       url: 'http://127.0.0.1:3106/health',
-      reuseExistingServer: false,
+      reuseExistingServer: !process.env.CI,
       timeout: 30_000,
       gracefulShutdown: { signal: 'SIGINT', timeout: 1_000 },
     },
     {
       command: 'node node_modules/vite/bin/vite.js preview apps/web --host 127.0.0.1',
       url: 'http://127.0.0.1:4173',
-      reuseExistingServer: false,
+      reuseExistingServer: !process.env.CI,
       timeout: 30_000,
       gracefulShutdown: { signal: 'SIGINT', timeout: 1_000 },
     },

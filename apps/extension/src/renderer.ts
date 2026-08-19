@@ -7,6 +7,28 @@ import type {
 } from './types.js';
 
 const ROOT_ATTRIBUTE = 'data-marketscope-overlay';
+const CARD_STATE_ATTRIBUTE = 'data-marketscope-card-state';
+const CARD_STYLES_ATTRIBUTE = 'data-marketscope-card-styles';
+
+function ensureCardStyles(document: Document): void {
+  if (document.querySelector(`[${CARD_STYLES_ATTRIBUTE}]`) !== null) return;
+  const style = document.createElement('style');
+  style.setAttribute(CARD_STYLES_ATTRIBUTE, 'true');
+  style.textContent = `
+    [${CARD_STATE_ATTRIBUTE}="hidden"] {
+      visibility: hidden !important;
+      block-size: 2px !important;
+      min-block-size: 2px !important;
+      max-block-size: 2px !important;
+      overflow: hidden !important;
+      pointer-events: none !important;
+    }
+    [${CARD_STATE_ATTRIBUTE}="dim"] {
+      opacity: 0.35 !important;
+    }
+  `;
+  document.head.append(style);
+}
 
 function textElement(
   document: Document,
@@ -33,7 +55,11 @@ function verdictPanel(document: Document, verdict: FilterVerdict): HTMLElement {
   }
   panel.append(textElement(document, 'div', `Relevance: ${verdict.relevance}`));
   panel.append(
-    textElement(document, 'strong', `FINAL: ${verdict.passed ? 'PASSED' : 'BLOCKED'}`),
+    textElement(
+      document,
+      'strong',
+      `FINAL: ${verdict.passed ? 'PASSED' : 'BLOCKED'}`,
+    ),
   );
   if (verdict.failedOn !== undefined) {
     panel.append(textElement(document, 'div', `Reason: ${verdict.failedOn}`));
@@ -41,7 +67,11 @@ function verdictPanel(document: Document, verdict: FilterVerdict): HTMLElement {
   return panel;
 }
 
-function styleRoot(root: HTMLElement, mode: DisplayMode, blocked: boolean): void {
+function styleRoot(
+  root: HTMLElement,
+  mode: DisplayMode,
+  blocked: boolean,
+): void {
   root.style.boxSizing = 'border-box';
   root.style.border = blocked ? '2px solid #9f1239' : '2px solid #166534';
   root.style.borderRadius = '8px';
@@ -51,14 +81,20 @@ function styleRoot(root: HTMLElement, mode: DisplayMode, blocked: boolean): void
   root.style.fontFamily = 'system-ui, sans-serif';
   root.style.zIndex = '2147483647';
 
-  if (blocked && mode === 'HIDE') {
-    root.style.position = 'absolute';
-    root.style.inset = '0';
-    root.style.overflow = 'auto';
-  } else {
-    root.style.position = 'relative';
-    root.style.margin = '4px';
+  root.style.position = 'relative';
+  root.style.margin = '4px';
+}
+
+function applyCardState(
+  card: HTMLElement,
+  mode: DisplayMode,
+  blocked: boolean,
+): void {
+  if (!blocked || mode === 'SHOW_WITH_WARNING') {
+    card.removeAttribute(CARD_STATE_ATTRIBUTE);
+    return;
   }
+  card.setAttribute(CARD_STATE_ATTRIBUTE, mode === 'HIDE' ? 'hidden' : 'dim');
 }
 
 export function renderEvaluation(
@@ -68,10 +104,11 @@ export function renderEvaluation(
 ): HTMLElement | undefined {
   card.querySelector(`[${ROOT_ATTRIBUTE}]`)?.remove();
   if (evaluations.length === 0) {
-    card.style.opacity = '';
+    card.removeAttribute(CARD_STATE_ATTRIBUTE);
     return undefined;
   }
-  const blocked = evaluations.length > 0 &&
+  const blocked =
+    evaluations.length > 0 &&
     !evaluations.some((evaluation) => evaluation.verdict.passed);
   const displayMode =
     blocked && preferences.showBlocked
@@ -79,13 +116,14 @@ export function renderEvaluation(
       : preferences.displayMode;
 
   const document = card.ownerDocument;
+  ensureCardStyles(document);
+  applyCardState(card, displayMode, blocked);
   const root = document.createElement('div');
   root.setAttribute(ROOT_ATTRIBUTE, 'true');
   styleRoot(root, displayMode, blocked);
   if (card.style.position.length === 0) {
     card.style.position = 'relative';
   }
-  card.style.opacity = blocked && displayMode === 'DIM' ? '0.35' : '';
 
   const summary = blocked ? 'Blocked by MarketScope' : 'Matched by MarketScope';
   root.append(textElement(document, 'strong', summary));
@@ -110,7 +148,9 @@ export function renderEvaluation(
   }
 
   if (blocked && displayMode === 'SHOW_WITH_WARNING') {
-    root.append(textElement(document, 'div', 'This listing failed every watchlist.'));
+    root.append(
+      textElement(document, 'div', 'This listing failed every watchlist.'),
+    );
   }
   card.append(root);
   return root;

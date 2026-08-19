@@ -87,8 +87,12 @@ function defaultMigrations(): Migration[] {
 }
 
 function defaultWebDirectory(): string | undefined {
-  const sourceDirectory = fileURLToPath(new URL('../../web/dist', import.meta.url));
-  const builtDirectory = fileURLToPath(new URL('../../../web/dist', import.meta.url));
+  const sourceDirectory = fileURLToPath(
+    new URL('../../web/dist', import.meta.url),
+  );
+  const builtDirectory = fileURLToPath(
+    new URL('../../../web/dist', import.meta.url),
+  );
   if (existsSync(sourceDirectory)) return sourceDirectory;
   return existsSync(builtDirectory) ? builtDirectory : undefined;
 }
@@ -526,7 +530,9 @@ export async function createServer(
     }
     const view = (request.query as { view?: string }).view ?? 'history';
     if (!['matches', 'favorites', 'history', 'blocked'].includes(view)) {
-      throw new ValidationError('view must be matches, favorites, history, or blocked');
+      throw new ValidationError(
+        'view must be matches, favorites, history, or blocked',
+      );
     }
     const listings = listPwaListings(database).filter((listing) => {
       const passed = listing.evaluations.some(
@@ -664,22 +670,25 @@ export async function createServer(
   app.get('/api/dashboard', async (request, reply) => {
     if (requireSession(auth, request, reply, false) === undefined) return;
     const listings = listPwaListings(database);
-    const activeWatchlists = watchlists.list().filter((watchlist) => watchlist.enabled);
+    const activeWatchlists = watchlists
+      .list()
+      .filter((watchlist) => watchlist.enabled);
+    const matchingListings = listings.filter((listing) =>
+      listing.evaluations.some((evaluation) => evaluation.verdict.passed),
+    );
     return {
       activeWatchlists: activeWatchlists.length,
-      matches: listings.filter((listing) =>
-        listing.evaluations.some((evaluation) => evaluation.verdict.passed),
-      ).length,
+      matches: matchingListings.length,
       favorites: listings.filter((listing) => listing.favorite).length,
       blocked: listings.filter(
         (listing) =>
           listing.evaluations.length > 0 &&
           !listing.evaluations.some((evaluation) => evaluation.verdict.passed),
       ).length,
-      observedLast24Hours: listings.filter(
+      matchesLast24Hours: matchingListings.filter(
         (listing) => listing.lastSeen >= now() - 24 * 60 * 60 * 1_000,
       ).length,
-      recentListings: listings.slice(0, 5),
+      recentListings: matchingListings.slice(0, 5),
     };
   });
 
@@ -706,7 +715,10 @@ export async function createServer(
       now(),
     );
     return reply
-      .header('content-disposition', `attachment; filename="marketscope-diagnostics-${new Date(now()).toISOString().slice(0, 10)}.json"`)
+      .header(
+        'content-disposition',
+        `attachment; filename="marketscope-diagnostics-${new Date(now()).toISOString().slice(0, 10)}.json"`,
+      )
       .send(report);
   });
 
@@ -716,8 +728,19 @@ export async function createServer(
       (request.query as { includeHistory?: string }).includeHistory === 'true';
     const date = new Date(now()).toISOString().slice(0, 10);
     return reply
-      .header('content-disposition', `attachment; filename="marketscope-backup-${date}.json"`)
-      .send(createBackup(database, watchlists, emailSettings, now(), includeHistory));
+      .header(
+        'content-disposition',
+        `attachment; filename="marketscope-backup-${date}.json"`,
+      )
+      .send(
+        createBackup(
+          database,
+          watchlists,
+          emailSettings,
+          now(),
+          includeHistory,
+        ),
+      );
   });
 
   app.post('/api/restore', async (request, reply) => {
