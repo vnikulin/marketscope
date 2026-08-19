@@ -245,3 +245,16 @@
 - Details uses the same fixed-height, contained thumbnail treatment as Tiles.
   It keeps the full image visible but no longer expands the preview to the
   width and height of the listing card.
+
+## 2026-08-19 Compact tiles and thumbnail selection
+
+- Tiles use smaller cards than Details at every tested viewport. Phone
+  portrait uses two columns with 130-pixel thumbnail frames. Details keeps its
+  existing single-column size and metadata. This supersedes the earlier
+  statement that Details and Tiles use the same thumbnail treatment.
+- A Marketplace card can contain an unrelated image before its listing photo.
+  The parser checks each image candidate and selects the first HTTPS
+  `fbcdn.net` source. It never accepts another host.
+- The seeded E2E preview has no captured Facebook image bytes, so it displays
+  the MarketScope placeholder. Real listing photos appear only after the
+  extension downloads and uploads an allowed JPEG thumbnail.

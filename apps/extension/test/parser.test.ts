@@ -36,7 +36,9 @@ describe('Marketplace fixture parser', () => {
           /^https:\/\/www\.facebook\.com\/marketplace\/item\/[^/?#]+\/$/,
         );
         expect(listing).toHaveProperty('price');
-        expect(listing.price === null || Number.isInteger(listing.price)).toBe(true);
+        expect(listing.price === null || Number.isInteger(listing.price)).toBe(
+          true,
+        );
         parsed += 1;
       } catch (error) {
         failures.push(
@@ -65,5 +67,18 @@ describe('Marketplace fixture parser', () => {
     expect(listing.url).toBe('https://www.facebook.com/marketplace/item/123/');
     expect(listing.price).toBe(1_200);
     expect(listing.imageUrl).toBeUndefined();
+  });
+
+  it('uses a trusted listing image after unrelated image candidates', () => {
+    const dom = new JSDOM(
+      '<main><div><a href="https://www.facebook.com/marketplace/item/456/" aria-label="Garmin unit, $500, Freeport, NY"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="><img src="https://scontent-lga3-1.xx.fbcdn.net/listing.jpg"><span>$500</span><span aria-hidden="true">Garmin unit</span><span aria-hidden="true">Freeport, NY</span></a></div></main>',
+      { url: 'https://www.facebook.com/marketplace/' },
+    );
+    const link = listingLinks(dom.window.document)[0];
+    expect(link).toBeDefined();
+    const { listing } = parseListingLink(link as HTMLAnchorElement, 100);
+    expect(listing.imageUrl).toBe(
+      'https://scontent-lga3-1.xx.fbcdn.net/listing.jpg',
+    );
   });
 });
