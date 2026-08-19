@@ -9,6 +9,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         content: resolve(import.meta.dirname, 'src/content.ts'),
+        popup: resolve(import.meta.dirname, 'src/popup.ts'),
         'service-worker': resolve(import.meta.dirname, 'src/service-worker.ts'),
         'assets/regex-worker': resolve(
           import.meta.dirname,

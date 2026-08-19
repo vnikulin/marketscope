@@ -178,3 +178,11 @@
 - MarketScope does not submit searches to Facebook. Each watchlist exposes its
   saved opaque URL as an Open search link, and only the user's click opens it.
   The extension token remains unable to create or edit watchlists.
+
+## 2026-08-19 Toolbar enable switch
+
+- The Chrome toolbar popup stores one local enabled flag. Disabled is explicit;
+  a missing flag keeps MarketScope enabled for existing installations.
+- Disabling stops the observer and removes controls, warnings, annotations, and
+  card visibility rules from the open Marketplace page. Enabling starts a new
+  observer against the current page without navigating or reloading Facebook.

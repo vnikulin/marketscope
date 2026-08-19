@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MarketScope</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mark">M</span>
+        <span
+          ><strong>MarketScope</strong
+          ><small>Marketplace filtering</small></span
+        >
+      </header>
+      <label class="toggle-row" for="extension-enabled">
+        <span
+          ><strong>Enabled</strong
+          ><small id="extension-status">Loading…</small></span
+        >
+        <input id="extension-enabled" type="checkbox" role="switch" />
+      </label>
+    </main>
+    <script type="module" src="dist/popup.js"></script>
+  </body>
+</html>

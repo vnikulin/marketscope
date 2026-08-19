@@ -6,6 +6,7 @@ import { listingLinks } from '../src/parser.js';
 
 describe('Marketplace controller', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -45,5 +46,25 @@ describe('Marketplace controller', () => {
     expect(
       dom.window.document.querySelector('[data-marketscope-parser-warning]'),
     ).not.toBeNull();
+  });
+
+  it('cancels pending observation when disabled', async () => {
+    vi.useFakeTimers();
+    const dom = new JSDOM(
+      '<body><a href="/marketplace/item/42/"><span>$5</span><span aria-hidden="true">Listing</span></a></body>',
+      { url: 'https://www.facebook.com/marketplace/' },
+    );
+    const uploads: unknown[][] = [];
+    const controller = new MarketplaceController(
+      dom.window.document,
+      { displayMode: 'HIDE', showBlocked: false },
+      { sendListings: (listings) => uploads.push(listings) },
+    );
+
+    controller.enqueueLinks(listingLinks(dom.window.document));
+    controller.stop();
+    await vi.advanceTimersByTimeAsync(150);
+
+    expect(uploads).toEqual([]);
   });
 });

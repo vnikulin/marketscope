@@ -3,6 +3,10 @@
   "name": "MarketScope",
   "version": "0.0.0",
   "permissions": ["alarms", "storage"],
+  "action": {
+    "default_title": "MarketScope",
+    "default_popup": "popup.html"
+  },
   "host_permissions": [
     "https://*.ts.net/*",
     "https://*.fbcdn.net/*",

@@ -1,0 +1,93 @@
+:root {
+  color: #f8fafc;
+  background: #103a32;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  width: 280px;
+  margin: 0;
+}
+
+main {
+  padding: 16px;
+}
+
+header,
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+header {
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: #f3b44c;
+  color: #103a32;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+strong,
+small {
+  display: block;
+}
+
+small {
+  margin-top: 2px;
+  color: #bad0ca;
+  font-size: 12px;
+}
+
+.toggle-row {
+  padding: 13px;
+  border: 1px solid #ffffff26;
+  border-radius: 11px;
+  background: #ffffff0d;
+  cursor: pointer;
+}
+
+input[role='switch'] {
+  appearance: none;
+  width: 44px;
+  height: 24px;
+  margin: 0;
+  border-radius: 999px;
+  background: #71817d;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+input[role='switch']::after {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+  border-radius: 50%;
+  background: white;
+  content: '';
+  transition: transform 120ms ease;
+}
+
+input[role='switch']:checked {
+  background: #48b89b;
+}
+
+input[role='switch']:checked::after {
+  transform: translateX(20px);
+}
+
+input[role='switch']:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}

@@ -77,12 +77,17 @@ export class MarketplaceController {
       }
       this.enqueueLinks(links);
     });
-    this.#observer.observe(this.#document.body, { childList: true, subtree: true });
+    this.#observer.observe(this.#document.body, {
+      childList: true,
+      subtree: true,
+    });
   }
 
   public stop(): void {
+    this.#stopped = true;
     this.#observer?.disconnect();
     if (this.#timer !== undefined) clearTimeout(this.#timer);
+    this.#pendingLinks.clear();
   }
 
   public enqueueLinks(links: readonly HTMLAnchorElement[]): void {
@@ -102,7 +107,10 @@ export class MarketplaceController {
     for (const link of links) {
       this.#attempted += 1;
       try {
-        const parsed = parseListingLink(link, this.#dependencies.now?.() ?? Date.now());
+        const parsed = parseListingLink(
+          link,
+          this.#dependencies.now?.() ?? Date.now(),
+        );
         if (this.#processedIds.has(parsed.listing.sourceListingId)) continue;
         this.#processedIds.add(parsed.listing.sourceListingId);
         const listing = toMarketplaceListing(parsed.listing);
@@ -118,6 +126,7 @@ export class MarketplaceController {
             ),
           });
         }
+        if (this.#stopped) return;
         renderEvaluation(parsed.card, evaluations, this.#preferences);
         this.#rendered.set(parsed.listing.sourceListingId, {
           card: parsed.card,
@@ -128,7 +137,6 @@ export class MarketplaceController {
         this.#failed += 1;
         console.warn('MarketScope could not parse one listing card', error);
       }
-
     }
 
     if (uploads.length > 0) this.#dependencies.sendListings(uploads);

@@ -121,9 +121,6 @@ export function renderEvaluation(
   const root = document.createElement('div');
   root.setAttribute(ROOT_ATTRIBUTE, 'true');
   styleRoot(root, displayMode, blocked);
-  if (card.style.position.length === 0) {
-    card.style.position = 'relative';
-  }
 
   const summary = blocked ? 'Blocked by MarketScope' : 'Matched by MarketScope';
   root.append(textElement(document, 'strong', summary));
@@ -154,6 +151,22 @@ export function renderEvaluation(
   }
   card.append(root);
   return root;
+}
+
+export function clearRendering(document: Document): void {
+  for (const card of document.querySelectorAll<HTMLElement>(
+    `[${CARD_STATE_ATTRIBUTE}]`,
+  )) {
+    card.removeAttribute(CARD_STATE_ATTRIBUTE);
+  }
+  for (const selector of [
+    `[${ROOT_ATTRIBUTE}]`,
+    '[data-marketscope-controls]',
+    '[data-marketscope-parser-warning]',
+    `[${CARD_STYLES_ATTRIBUTE}]`,
+  ]) {
+    for (const element of document.querySelectorAll(selector)) element.remove();
+  }
 }
 
 export function createControls(
