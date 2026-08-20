@@ -1,8 +1,8 @@
 # Install on Ubuntu
 
-MarketScope supports 64-bit Ubuntu 22.04 and 24.04 on AMD64 and ARM64. The
-machine needs at least 2 GB of RAM, 10 GB of free disk space, Internet access,
-and either `curl` or `wget` for the first command.
+MarketScope supports 64-bit Ubuntu 22.04, 24.04, and 26.04 on AMD64 and ARM64.
+The machine needs at least 2 GB of RAM, 10 GB of free disk space, Internet
+access, and either `curl` or `wget` for the first command.
 
 Publish a semantic version release first. The release workflow builds the
 container and installer assets. The linked GHCR container package must be
