@@ -2,7 +2,8 @@
 set -Eeuo pipefail
 
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-# shellcheck source=../install.sh
+# The source path is resolved from the script location at runtime.
+# shellcheck disable=SC1091
 source "$repository_root/install.sh"
 
 for version in 22.04 24.04 26.04; do
