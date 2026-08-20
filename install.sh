@@ -48,6 +48,13 @@ wait_for_health() {
   return 1
 }
 
+supported_ubuntu_version() {
+  case "$1" in
+    22.04 | 24.04 | 26.04) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 rollback() {
   local status=$?
   trap - ERR
@@ -81,7 +88,7 @@ preflight() {
   # shellcheck disable=SC1091
   . /etc/os-release
   [[ ${ID:-} == ubuntu ]] || fail 'only Ubuntu is supported'
-  [[ ${VERSION_ID:-} == 22.04 || ${VERSION_ID:-} == 24.04 ]] || fail 'only Ubuntu 22.04 and 24.04 are supported'
+  supported_ubuntu_version "${VERSION_ID:-}" || fail 'only Ubuntu 22.04, 24.04, and 26.04 are supported'
   local architecture memory_kib free_kib
   architecture=$(dpkg --print-architecture)
   [[ "$architecture" == amd64 || "$architecture" == arm64 ]] || fail "unsupported architecture: $architecture"
@@ -276,4 +283,6 @@ main() {
   printf 'MarketScope installation completed. Run sudo marketscope status to check it.\n'
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

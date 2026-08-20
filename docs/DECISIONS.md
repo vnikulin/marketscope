@@ -276,10 +276,13 @@
 - Maintenance commands stop the server before another process opens SQLite.
   This preserves the one-owner rule. Logical backups omit SMTP credentials,
   SMTP errors, session material, and extension tokens.
-- Docker's current Ubuntu instructions support 22.04 and 24.04 and use the
-  official `docker.sources` repository with `Signed-By`. MarketScope follows
-  those steps and enables the daemon with systemd. Source checked August 19,
-  2026: [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/).
+- Docker's current Ubuntu instructions support 22.04, 24.04, and 26.04 and use
+  the official `docker.sources` repository with `Signed-By`. MarketScope
+  follows those steps and enables the daemon with systemd. The 26.04
+  `resolute` repository and Tailscale package repository both returned HTTP 200
+  on August 19, 2026. Source:
+  [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) and
+  [Tailscale's Resolute repository list](https://pkgs.tailscale.com/stable/ubuntu/resolute.tailscale-keyring.list).
 - GitHub Actions publishes to GHCR with the repository `GITHUB_TOKEN` and
   `packages: write`. Anonymous Ubuntu installs require the resulting container
   package to be public. Source checked August 19, 2026:

@@ -486,7 +486,7 @@ curl -fsSL https://<host>/install.sh | sudo bash
 
 Note the bootstrap problem: a minimal Ubuntu Server image may not have `curl`. Document a `wget -qO-` equivalent alongside it. Do not claim zero prerequisites when the install command itself is a prerequisite.
 
-Assume the box has Ubuntu 22.04 or 24.04 and nothing else. Pin those versions. If the detected release is anything else, refuse with a clear message rather than trying.
+Assume the box has Ubuntu 22.04, 24.04, or 26.04 and nothing else. Pin those versions. If the detected release is anything else, refuse with a clear message rather than trying.
 
 The installer:
 
@@ -614,7 +614,7 @@ Unauthenticated API access on every route. Extension token attempting a settings
 
 ### Clean install
 
-Required before you call this done. A fresh Ubuntu 24.04 VM with no Docker, no Node, no MarketScope.
+Required before you call this done. A fresh supported Ubuntu LTS machine with no Docker, no Node, no MarketScope.
 
 Run the documented install command. Then verify: first run wizard completes, extension pairs, a listing ingests, an email sends, reboot persistence, second installer run offers upgrade/repair without data loss, backup, restore, uninstall preserving data.
 
@@ -657,7 +657,7 @@ Do not rely on training data for any of these. Check current official documentat
 3. **Chrome Local Network Access current behavior**, specifically whether an extension service worker fetch with declared `host_permissions` to a `*.ts.net` hostname over HTTPS is affected. This is load bearing. Write an actual test, do not assume
 4. Whether Chrome still permits unpacked extension loading without a per-launch nag, and the current Chrome Web Store unlisted publishing requirements and fee. Document the chosen distribution path in `INSTALL-EXTENSION.md`
 5. `tailscale serve` current syntax and whether HTTPS certificate provisioning still works as expected on a free tailnet
-6. Docker Engine apt repository setup steps for Ubuntu 22.04 and 24.04
+6. Docker Engine apt repository setup steps for Ubuntu 22.04, 24.04, and 26.04
 7. Current Gmail app password status and SMTP requirements
 8. Current Exchange Online SMTP AUTH basic authentication timeline, to confirm the warning text in Section 11 is still accurate
 9. Playwright's current support for loading a Manifest V3 extension in a persistent context, including whether headless works
@@ -695,7 +695,7 @@ CHANGELOG.md
 
 Not done because files exist, containers start, or tests compile. Done when I can do all of the following on real hardware:
 
-1. Install on a clean Ubuntu 24.04 machine with one command
+1. Install on a clean supported Ubuntu LTS machine with one command
 2. Complete the first run wizard and create an admin account
 3. Configure SMTP and receive a real test email
 4. Install the extension in my daily browser and pair it with the server

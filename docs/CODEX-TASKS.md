@@ -278,7 +278,7 @@ UNVERIFIED-SANDBOX with the exact command I should run.
   /var/lib/marketscope. Comment shm_size:2gb as a note for V2's browser
   container.
 - Multi-stage Dockerfile. Native deps compiled at build, not at runtime.
-- install.sh per SPEC section 15. Ubuntu 22.04 and 24.04 only, refuse
+- install.sh per SPEC section 15. Ubuntu 22.04, 24.04, and 26.04 only, refuse
   anything else. Docker from the official apt repo with GPG verification.
   systemctl enable --now docker, or restart:unless-stopped will not
   survive a reboot. Trap errors and roll back. Rerun offers upgrade,
@@ -342,6 +342,6 @@ claim any item you did not actually observe.
 
 ## After M8
 
-Everything Codex could not verify is yours. The clean-VM install test is the big one, and it is the only way to find out whether "one command install" is true. Fresh Ubuntu 24.04, no Docker, no Node. Run the documented command, then work SPEC section 23 top to bottom.
+Everything Codex could not verify is yours. The clean-VM install test is the big one, and it is the only way to find out whether "one command install" is true. Use a fresh supported Ubuntu LTS machine with no Docker and no Node. Run the documented command, then work SPEC section 23 top to bottom.
 
 Expect M4 to be where this stalls. The fixture corpus is real work you have to do by hand, and the 95% parse gate is a number I picked rather than derived. If real Marketplace pages land at 88% because a chunk of cards are ad units with no price, adjust the gate. Do not adjust the fixtures.

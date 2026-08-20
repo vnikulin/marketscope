@@ -21,24 +21,19 @@
   MarketScope on its `*.ts.net` hostname, add it to the home screen on each
   device, launch it in standalone mode, and confirm listing views still fetch
   current API data.
-- UNVERIFIED-SANDBOX: Docker isn't available in this workspace. Build the
-  release image on a Docker host with
-  `docker build --file docker/Dockerfile --build-arg MARKETSCOPE_BUILD_VERSION=v0.1.0 --build-arg MARKETSCOPE_SOURCE_URL=https://github.com/owner/repository --tag marketscope:v0.1.0 .`,
-  then run it through `docker compose` with a temporary `.env` and confirm the
-  health check passes.
-- UNVERIFIED-SANDBOX: The GitHub release workflow and anonymous GHCR pull need
-  live GitHub verification. Push a prerelease tag with
-  `git push origin v0.1.0-rc.1`, set the linked GHCR package visibility to
-  public, then verify `docker pull ghcr.io/owner/repository:v0.1.0-rc.1`
-  without signing in.
+- UNVERIFIED-SANDBOX: The release image builds in GitHub Actions, and its AMD64
+  and ARM64 manifests allow anonymous GHCR access. Docker isn't available in
+  this workspace, so the image still needs its first real `docker compose` run
+  as part of the clean-machine installer test.
 - UNVERIFIED-SANDBOX: The one-command installer, Docker repository setup,
   rollback trap, Tailscale HTTPS configuration, reboot persistence, rerun
   choices, update rollback, backup, restore, and uninstall have not run on a
-  clean Ubuntu VM. On a fresh Ubuntu 24.04 VM, run
-  `curl -fsSL https://github.com/owner/repository/releases/download/v0.1.0-rc.1/install.sh | sudo bash`.
+  clean Ubuntu VM. On a fresh Ubuntu 26.04 VM, run the current release
+  candidate installer. For example,
+  `curl -fsSL https://github.com/owner/repository/releases/download/v0.1.0-rc.2/install.sh | sudo bash`.
   Complete setup, ingest a fixture through the paired extension, send a real
   test email, reboot, rerun the installer, run `sudo marketscope update`, run
   `sudo marketscope backup --include-history`, restore that file, and run
   `sudo marketscope uninstall`. Confirm data remains after uninstall. Repeat
   the bootstrap with
-  `wget -qO- https://github.com/owner/repository/releases/download/v0.1.0-rc.1/install.sh | sudo bash`.
+  `wget -qO- https://github.com/owner/repository/releases/download/v0.1.0-rc.2/install.sh | sudo bash`.
