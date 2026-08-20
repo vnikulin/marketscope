@@ -6,6 +6,17 @@ repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck disable=SC1091
 source "$repository_root/install.sh"
 
+stdin_installer=$(sed 's/^  main "$@"$/  echo stdin-dispatch-ok/' "$repository_root/install.sh")
+[[ "$stdin_installer" == *'  echo stdin-dispatch-ok'* ]] || {
+  printf 'Could not prepare the stdin installer regression test.\n' >&2
+  exit 1
+}
+stdin_dispatch_output=$(bash <<<"$stdin_installer")
+[[ "$stdin_dispatch_output" == stdin-dispatch-ok ]] || {
+  printf 'Expected the installer to dispatch main when read from stdin.\n' >&2
+  exit 1
+}
+
 for version in 22.04 24.04 26.04; do
   supported_ubuntu_version "$version" || {
     printf 'Expected Ubuntu %s to be supported.\n' "$version" >&2

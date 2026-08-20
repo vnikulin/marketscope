@@ -30,10 +30,10 @@
   choices, update rollback, backup, restore, and uninstall have not run on a
   clean Ubuntu VM. On a fresh Ubuntu 26.04 VM, run the current release
   candidate installer. For example,
-  `curl -fsSL https://github.com/owner/repository/releases/download/v0.1.0-rc.2/install.sh | sudo bash`.
+  `curl -fsSL https://github.com/owner/repository/releases/download/v0.1.0-rc.3/install.sh | sudo bash`.
   Complete setup, ingest a fixture through the paired extension, send a real
   test email, reboot, rerun the installer, run `sudo marketscope update`, run
   `sudo marketscope backup --include-history`, restore that file, and run
   `sudo marketscope uninstall`. Confirm data remains after uninstall. Repeat
   the bootstrap with
-  `wget -qO- https://github.com/owner/repository/releases/download/v0.1.0-rc.2/install.sh | sudo bash`.
+  `wget -qO- https://github.com/owner/repository/releases/download/v0.1.0-rc.3/install.sh | sudo bash`.
