@@ -270,6 +270,9 @@
 - The installer pins the image tag that produced it. `marketscope update`
   moves an install to the stable `latest` channel. `marketscope update v1.2.3`
   pins or rolls forward to a specific release.
+- The installer entry point supports both file execution and standard-input
+  execution. Bash leaves `BASH_SOURCE[0]` unset for `curl | bash`, so the
+  dispatch guard must tolerate an unset value while `set -u` is active.
 - Updates preserve the previous image ID, a physical SQLite snapshot, the
   Compose file, and the CLI. A failed pull restarts the old version. A failed
   health check restores all four before restarting.
